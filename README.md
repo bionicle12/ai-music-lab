@@ -25,14 +25,14 @@ that stay meaningful even when the two models disagree.
 
 <p align="center">
   <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4">
-    <img src="./assets/readme/demo-poster.jpg" width="100%"
-         alt="The AI Music Lab interface analysing a track: lofcz and FST score cards side by side, both reading high, above a spectrogram and the detector telemetry tabs">
+    <img src="./assets/readme/demo.webp" width="100%"
+         alt="A real run in the AI Music Lab interface: lofcz and FST score cards side by side, both reading high, an interactive spectrogram with a hover readout, and the sliding-window timeline map">
   </a>
 </p>
 
 <p align="center"><sub>
-  ▶ <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4"><b>Watch the 30-second demo</b></a>
-  — one MP3 in, both detectors agreeing, spectrogram and native telemetry. No sound.
+  A looping preview of the first 12 seconds ·
+  ▶ <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4"><b>full 30-second run (MP4, 1.8 MB)</b></a>
 </sub></p>
 
 ## How it works

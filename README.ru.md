@@ -24,14 +24,14 @@
 
 <p align="center">
   <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4">
-    <img src="./assets/readme/demo-poster.jpg" width="100%"
-         alt="Интерфейс AI Music Lab во время анализа трека: рядом карточки score детекторов lofcz и FST, оба показывают высокую оценку, ниже спектрограмма и вкладки нативной телеметрии">
+    <img src="./assets/readme/demo.webp" width="100%"
+         alt="Реальный прогон в интерфейсе AI Music Lab: рядом карточки score детекторов lofcz и FST, оба показывают высокую оценку, интерактивная спектрограмма с всплывающей подсказкой и карта по времени">
   </a>
 </p>
 
 <p align="center"><sub>
-  ▶ <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4"><b>Посмотреть 30-секундное демо</b></a>
-  — один MP3 на входе, оба детектора сходятся, спектрограмма и нативная телеметрия. Без звука.
+  Зацикленное превью первых 12 секунд ·
+  ▶ <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4"><b>полный прогон 30 секунд (MP4, 1.8 МБ)</b></a>
 </sub></p>
 
 ## Как это работает
