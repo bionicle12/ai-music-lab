@@ -1,0 +1,14 @@
+{
+  "lofcz": {
+    "filename": "ai_music_detector.onnx",
+    "url": "https://huggingface.co/lofcz/ai-music-detector/resolve/main/ai_music_detector.onnx?download=true"
+  },
+  "fst_stage1": {
+    "filename": "Stage-1.ckpt",
+    "url": "https://drive.google.com/file/d/1frT4Mn0l6rso407Sy3eWCKbZmgwuVceN/view"
+  },
+  "fst_stage2": {
+    "filename": "Stage-2.ckpt",
+    "url": "https://drive.google.com/file/d/1E_xPsosYWI4UjKT8XQCbZW4ILvsWnmda/view"
+  }
+}

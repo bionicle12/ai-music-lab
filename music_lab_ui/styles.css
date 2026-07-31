@@ -1,0 +1,556 @@
+:root {
+  --lab-bg: #06101a;
+  --lab-surface: #0b1723;
+  --lab-surface-2: #0e1b28;
+  --lab-line: #203344;
+  --lab-line-strong: #2a465a;
+  --lab-text: #edf5fa;
+  --lab-muted: #91a3b3;
+  --lab-cyan: #23b7e5;
+  --lab-amber: #f4ad28;
+  --lab-red: #ef5b5b;
+  --lab-green: #4bd19b;
+}
+
+body,
+.gradio-container {
+  background:
+    radial-gradient(circle at 82% -8%, rgba(35, 183, 229, 0.08), transparent 34rem),
+    var(--lab-bg) !important;
+  color: var(--lab-text);
+}
+.prose code,
+.gradio-container code {
+  background: #102435 !important;
+  border: 1px solid #28485d;
+  border-radius: 4px;
+  color: #7ee7ff !important;
+  padding: 0.08em 0.32em;
+}
+
+pre code,
+.gradio-container pre code {
+  background: transparent !important;
+  border: 0;
+  color: #cfeefa !important;
+  padding: 0;
+}
+
+.prose code::selection,
+.gradio-container code::selection {
+  background: #2d6f8b;
+  color: #ffffff;
+}
+
+.gradio-container table ::selection {
+  background: #2d6f8b;
+  color: #ffffff;
+}
+
+.gradio-container table [aria-selected="true"],
+.gradio-container table .selected {
+  background: #163a4c !important;
+  color: #ffffff !important;
+}
+
+.gradio-container table [aria-selected="true"] *,
+.gradio-container table .selected * {
+  color: inherit !important;
+}
+
+.gradio-container .virtual-row:hover {
+  background: #163a4c !important;
+  color: #ffffff !important;
+}
+
+.gradio-container .virtual-row:hover * {
+  color: inherit !important;
+}
+
+.pinned-a {
+  color: var(--lab-amber);
+  font-weight: 700;
+}
+
+.telemetry-help {
+  display: inline-block;
+  margin: 6px 0 10px;
+  position: relative;
+  z-index: 3;
+}
+
+.telemetry-help summary {
+  align-items: center;
+  background: #102435;
+  border: 1px solid var(--lab-cyan);
+  border-radius: 50%;
+  color: #7ee7ff;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 800;
+  height: 24px;
+  justify-content: center;
+  list-style: none;
+  width: 24px;
+}
+
+.telemetry-help summary:focus-visible {
+  box-shadow: 0 0 0 3px rgba(35, 183, 229, 0.35);
+  outline: 0;
+}
+
+.telemetry-help-body {
+  background: #0c1a27;
+  border: 1px solid var(--lab-line-strong);
+  border-radius: 9px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38);
+  color: #c9d7e1;
+  margin-top: 7px;
+  max-width: 640px;
+  padding: 14px 16px;
+}
+
+.telemetry-help-body h4,
+.telemetry-help-body p {
+  margin: 0 0 8px;
+}
+
+.run-interpretation {
+  background: linear-gradient(135deg, rgba(35, 183, 229, 0.08), transparent);
+  border: 1px solid var(--lab-line);
+  border-radius: 10px;
+  margin-top: 12px;
+  padding: 18px;
+}
+
+.gradio-container {
+  max-width: 1920px !important;
+  padding: 0 !important;
+}
+
+.lab-shell {
+  align-items: flex-start;
+  gap: 0 !important;
+  margin: 0 !important;
+}
+
+.left-workbench {
+  background: rgba(7, 18, 29, 0.97);
+  border-right: 1px solid var(--lab-line);
+  min-height: 100vh;
+  padding: 20px 18px 28px;
+  position: sticky;
+  top: 0;
+}
+
+.analysis-canvas {
+  padding: 18px 20px 36px;
+}
+
+.brand-block {
+  border-bottom: 1px solid var(--lab-line);
+  margin-bottom: 16px;
+  padding: 4px 0 18px;
+}
+
+.brand-block h1 {
+  color: #f6fbff;
+  font-size: 2rem;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin: 8px 0 6px;
+}
+
+.brand-block p {
+  color: var(--lab-muted);
+  font-size: 0.86rem;
+  margin: 0;
+}
+
+.eyebrow {
+  color: var(--lab-cyan);
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+}
+
+/* Sits just under the brand block: switching language reloads the page, so it
+   reads as navigation rather than as one more analysis control. */
+.locale-switcher {
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  margin: -8px 0 16px;
+}
+
+.locale-switcher .locale-active {
+  color: var(--lab-text);
+  font-weight: 600;
+}
+
+.locale-switcher .locale-link {
+  color: var(--lab-muted);
+  text-decoration: none;
+}
+
+.locale-switcher .locale-link:hover,
+.locale-switcher .locale-link:focus-visible {
+  color: var(--lab-cyan);
+  text-decoration: underline;
+}
+
+.locale-switcher .locale-sep {
+  color: var(--lab-line-strong);
+}
+
+.left-workbench h3 {
+  color: var(--lab-text);
+  font-size: 0.84rem;
+  margin: 15px 0 8px;
+}
+
+.audio-drop {
+  border: 1px dashed rgba(35, 183, 229, 0.72) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+
+.audio-drop .audio-container .component-wrapper .waveform-container {
+  margin-bottom: 20px !important;
+}
+
+.metadata-rail {
+  max-height: 330px;
+  overflow: auto;
+}
+
+.metadata-rail table {
+  font-size: 0.72rem !important;
+}
+
+.analyze-button {
+  box-shadow: none !important;
+  font-weight: 700 !important;
+  min-height: 48px;
+}
+
+.status-line {
+  border-bottom: 1px solid var(--lab-line);
+  color: var(--lab-cyan);
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 0.72rem;
+  padding: 9px 2px 10px;
+}
+
+.method-note {
+  color: var(--lab-muted);
+  font-size: 0.72rem;
+}
+
+.detector-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.detector-card {
+  background: linear-gradient(145deg, #0d1c29, #091520);
+  border: 1px solid var(--lab-line);
+  border-radius: 10px;
+  min-height: 166px;
+  overflow: hidden;
+  padding: 13px 15px 10px;
+  position: relative;
+}
+
+.detector-card:only-child {
+  grid-column: 1 / -1;
+}
+
+.detector-card::before {
+  background: var(--lab-cyan);
+  content: "";
+  height: 2px;
+  left: 14px;
+  position: absolute;
+  right: 14px;
+  top: 0;
+}
+
+.detector-card.result-medium::before {
+  background: var(--lab-amber);
+}
+
+.detector-card.result-high::before,
+.detector-card.result-error::before {
+  background: var(--lab-red);
+}
+
+.detector-card.result-low::before {
+  background: var(--lab-green);
+}
+
+.detector-head {
+  align-items: center;
+  border-bottom: 1px solid var(--lab-line);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 9px;
+}
+
+.detector-name {
+  color: var(--lab-cyan);
+  font-size: 1.18rem;
+  font-weight: 700;
+}
+
+.detector-kind,
+.detector-device {
+  color: var(--lab-muted);
+  font-size: 0.63rem;
+  margin-left: 9px;
+}
+
+.detector-device {
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  margin-left: 0;
+  max-width: 44%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detector-body {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(110px, 0.7fr) minmax(120px, 0.8fr) minmax(190px, 1.5fr);
+  padding-top: 12px;
+}
+
+.detector-body > div + div {
+  border-left: 1px solid var(--lab-line);
+  padding-left: 12px;
+}
+
+.metric-label {
+  color: var(--lab-muted);
+  display: block;
+  font-size: 0.65rem;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.detector-score {
+  color: var(--lab-cyan);
+  display: block;
+  font-size: 2rem;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.result-high .detector-score,
+.result-error .detector-score {
+  color: var(--lab-red);
+}
+
+.result-medium .detector-score {
+  color: var(--lab-amber);
+}
+
+.result-low .detector-score {
+  color: var(--lab-green);
+}
+
+.detector-status {
+  color: var(--lab-text);
+  display: block;
+  font-size: 1rem;
+}
+
+.detector-status-block small {
+  color: var(--lab-muted);
+  display: block;
+  font-size: 0.68rem;
+  margin-top: 5px;
+}
+
+.detector-caveat p {
+  color: #c0ced9;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.detector-runtime {
+  color: var(--lab-muted);
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 0.62rem;
+  margin-top: 9px;
+}
+
+.empty-state {
+  border: 1px dashed var(--lab-line-strong);
+  border-radius: 10px;
+  color: var(--lab-muted);
+  margin-bottom: 12px;
+  padding: 28px;
+  text-align: center;
+}
+
+.analysis-canvas .tabs {
+  background: var(--lab-surface);
+  border: 1px solid var(--lab-line);
+  border-radius: 10px;
+  padding: 0 10px 10px;
+}
+
+.analysis-canvas .tab-nav {
+  border-bottom: 1px solid var(--lab-line) !important;
+}
+
+.hero-plot {
+  min-height: 420px;
+}
+
+.secondary-plots {
+  gap: 9px;
+}
+
+.analysis-guide {
+  background: linear-gradient(135deg, rgba(35, 183, 229, 0.07), transparent);
+  border: 1px solid var(--lab-line);
+  border-radius: 10px;
+  min-height: 170px;
+  padding: 22px;
+}
+
+.analysis-guide h3 {
+  color: var(--lab-text);
+  font-size: 1.3rem;
+  margin: 8px 0;
+}
+
+.analysis-guide p {
+  color: #b9c8d4;
+  line-height: 1.55;
+  max-width: 760px;
+}
+
+.comparison-controls {
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.compare-button {
+  border-color: rgba(244, 173, 40, 0.55) !important;
+  color: var(--lab-amber) !important;
+  min-height: 42px;
+}
+
+.history-heading {
+  align-items: end;
+  border-bottom: 1px solid var(--lab-line);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 13px;
+  padding: 12px 3px 9px;
+}
+
+.history-heading h2 {
+  color: var(--lab-text);
+  font-size: 1rem;
+  margin: 5px 0 0;
+}
+
+.history-heading p {
+  color: var(--lab-muted);
+  font-size: 0.7rem;
+  margin: 0;
+}
+
+.history-table {
+  border: 1px solid var(--lab-line) !important;
+  border-radius: 0 0 10px 10px !important;
+  max-height: 390px;
+  overflow: auto;
+}
+
+.history-table table {
+  font-size: 0.72rem !important;
+}
+
+@media (max-width: 1380px) {
+  .detector-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1180px) {
+  .detector-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detector-caveat {
+    border-left: 0 !important;
+    border-top: 1px solid var(--lab-line);
+    grid-column: 1 / -1;
+    padding-left: 0 !important;
+    padding-top: 8px;
+  }
+}
+
+@media (max-width: 900px) {
+  .lab-shell {
+    display: block !important;
+  }
+
+  .left-workbench {
+    border-bottom: 1px solid var(--lab-line);
+    border-right: 0;
+    min-height: auto;
+    padding: 16px;
+    position: static;
+  }
+
+  .analysis-canvas {
+    min-width: 0 !important;
+    padding: 12px;
+  }
+
+  .detector-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .secondary-plots,
+  .comparison-controls {
+    display: block !important;
+  }
+
+  .history-heading {
+    align-items: start;
+    display: block;
+  }
+
+  .history-heading p {
+    margin-top: 6px;
+  }
+}
+
+@media (max-width: 620px) {
+  .detector-body {
+    display: block;
+  }
+
+  .detector-body > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--lab-line);
+    margin-top: 9px;
+    padding-left: 0;
+    padding-top: 9px;
+  }
+
+  .detector-caveat {
+    grid-column: auto;
+  }
+}

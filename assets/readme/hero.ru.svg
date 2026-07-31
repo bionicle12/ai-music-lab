@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="360" viewBox="0 0 1200 360"
+     role="img" aria-labelledby="heroTitle heroDesc">
+  <title id="heroTitle">AI Music Lab</title>
+  <desc id="heroDesc">Локальная лаборатория анализа аудио: два открытых AI-детектора запускаются на своей машине, а панель «время × частота» показывает, в каком окне трека отпечаток сильнее всего.</desc>
+
+  <rect width="1200" height="360" rx="24" fill="#06101a"/>
+
+  <g id="title-block">
+    <rect x="64" y="56" width="64" height="3" fill="#23b7e5"/>
+    <text x="64" y="96" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" letter-spacing="3" fill="#23b7e5">LOCAL FORENSIC AUDIO WORKSPACE</text>
+    <text x="64" y="176" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="72" font-weight="700" fill="#edf5fa">AI Music Lab</text>
+    <text x="64" y="222" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="23" fill="#91a3b3">Два открытых AI-детектора локально —</text>
+    <text x="64" y="254" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="23" fill="#91a3b3">и карта того, где сидит отпечаток.</text>
+    <text x="64" y="306" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" letter-spacing="2" fill="#5f7488">WINDOWS · NVIDIA CUDA · PYTHON 3.11 · MIT</text>
+  </g>
+
+  <g id="project-proof">
+    <rect x="700" y="56" width="436" height="248" rx="14" fill="#0b1723" stroke="#203344"/>
+    <rect x="714" y="56" width="408" height="3" fill="#23b7e5"/>
+    <text x="724" y="92" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" letter-spacing="2" fill="#91a3b3">ВРЕМЯ × ЧАСТОТА</text>
+
+    <g id="spectrogram-lanes" fill="#23b7e5">
+      <rect x="724" y="118" width="7" height="132" opacity="0.20"/>
+      <rect x="737" y="118" width="7" height="132" opacity="0.32"/>
+      <rect x="750" y="118" width="7" height="132" opacity="0.24"/>
+      <rect x="763" y="118" width="7" height="132" opacity="0.40"/>
+      <rect x="776" y="118" width="7" height="132" opacity="0.28"/>
+      <rect x="789" y="118" width="7" height="132" opacity="0.22"/>
+      <rect x="802" y="118" width="7" height="132" opacity="0.36"/>
+      <rect x="815" y="118" width="7" height="132" opacity="0.26"/>
+      <rect x="828" y="118" width="7" height="132" opacity="0.44"/>
+      <rect x="841" y="118" width="7" height="132" opacity="0.30"/>
+      <rect x="854" y="118" width="7" height="132" opacity="0.24"/>
+      <rect x="867" y="118" width="7" height="132" opacity="0.38"/>
+      <rect x="880" y="118" width="7" height="132" opacity="0.52"/>
+      <rect x="893" y="118" width="7" height="132" opacity="0.64"/>
+      <rect x="906" y="118" width="7" height="132" opacity="0.76"/>
+      <rect x="919" y="118" width="7" height="132" opacity="0.82"/>
+      <rect x="932" y="118" width="7" height="132" opacity="0.70"/>
+      <rect x="945" y="118" width="7" height="132" opacity="0.58"/>
+      <rect x="958" y="118" width="7" height="132" opacity="0.34"/>
+      <rect x="971" y="118" width="7" height="132" opacity="0.26"/>
+      <rect x="984" y="118" width="7" height="132" opacity="0.30"/>
+      <rect x="997" y="118" width="7" height="132" opacity="0.22"/>
+      <rect x="1010" y="118" width="7" height="132" opacity="0.34"/>
+      <rect x="1023" y="118" width="7" height="132" opacity="0.26"/>
+      <rect x="1036" y="118" width="7" height="132" opacity="0.20"/>
+      <rect x="1049" y="118" width="7" height="132" opacity="0.32"/>
+      <rect x="1062" y="118" width="7" height="132" opacity="0.24"/>
+      <rect x="1075" y="118" width="7" height="132" opacity="0.28"/>
+      <rect x="1088" y="118" width="7" height="132" opacity="0.20"/>
+      <rect x="1101" y="118" width="7" height="132" opacity="0.26"/>
+    </g>
+
+    <path d="M724 232 L763 226 L802 220 L841 210 L880 178 L906 158 L932 166 L971 200 L1010 214 L1049 222 L1108 228"
+          fill="none" stroke="#4bd19b" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+
+    <rect x="874" y="112" width="72" height="144" rx="4" fill="none" stroke="#f4ad28" stroke-width="2"/>
+    <text x="910" y="278" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" fill="#f4ad28">самое сильное окно</text>
+  </g>
+</svg>

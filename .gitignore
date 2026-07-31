@@ -1,0 +1,18 @@
+__pycache__/
+.idea
+.pytest_cache/
+*.py[cod]
+models/lofcz/*
+models/fst/*
+!models/lofcz/.gitkeep
+!models/fst/.gitkeep
+artifacts/*
+!artifacts/.gitkeep
+data/
+output/
+
+# Raw screen recordings. Git keeps every byte forever, so only the encoded
+# README asset under assets/readme/ is committed.
+assets/*.mp4
+assets/*.mov
+assets/*.mkv

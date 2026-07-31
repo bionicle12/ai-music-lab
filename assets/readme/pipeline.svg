@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="430" viewBox="0 0 1200 430"
+     role="img" aria-labelledby="pipeTitle pipeDesc">
+  <title id="pipeTitle">How AI Music Lab processes one track</title>
+  <desc id="pipeDesc">Four stages. One audio file goes in. Two detectors and a set of model-free signal metrics measure it. Four views localize where the fingerprint sits: layer ranking, timeline map, artifact metrics and detector telemetry. Finally version A is compared against version B as a delta. Nothing leaves the machine.</desc>
+
+  <rect width="1200" height="430" rx="24" fill="#06101a"/>
+
+  <g id="stage-input">
+    <text x="48" y="52" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" letter-spacing="2" fill="#23b7e5">01 · INPUT</text>
+    <rect x="48" y="70" width="258" height="2" fill="#203344"/>
+    <rect x="48" y="96" width="258" height="132" rx="12" fill="#0b1723" stroke="#203344"/>
+    <text x="66" y="136" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="22" font-weight="600" fill="#edf5fa">One audio file</text>
+    <text x="66" y="168" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" fill="#23b7e5">WAV · FLAC · MP3</text>
+    <text x="66" y="200" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="20" fill="#91a3b3">mix, stem, or layer</text>
+  </g>
+
+  <path d="M314 154 L324 162 L314 170" fill="none" stroke="#2a465a" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g id="stage-measure">
+    <text x="330" y="52" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" letter-spacing="2" fill="#23b7e5">02 · MEASURE</text>
+    <rect x="330" y="70" width="258" height="2" fill="#203344"/>
+
+    <rect x="330" y="96" width="258" height="76" rx="12" fill="#0b1723" stroke="#203344"/>
+    <text x="348" y="130" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="22" font-weight="600" fill="#edf5fa">lofcz</text>
+    <text x="348" y="156" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" fill="#91a3b3">ONNX · spectral</text>
+
+    <rect x="330" y="186" width="258" height="76" rx="12" fill="#0b1723" stroke="#203344"/>
+    <text x="348" y="220" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="22" font-weight="600" fill="#edf5fa">FST</text>
+    <text x="348" y="246" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" fill="#91a3b3">Stage-1 + Stage-2</text>
+
+    <rect x="330" y="276" width="258" height="76" rx="12" fill="#0b1723" stroke="#4bd19b"/>
+    <text x="348" y="310" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="22" font-weight="600" fill="#4bd19b">signal metrics</text>
+    <text x="348" y="336" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" fill="#91a3b3">no model involved</text>
+  </g>
+
+  <path d="M596 154 L606 162 L596 170" fill="none" stroke="#2a465a" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g id="stage-localize">
+    <text x="612" y="52" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" letter-spacing="2" fill="#23b7e5">03 · LOCALIZE</text>
+    <rect x="612" y="70" width="258" height="2" fill="#203344"/>
+
+    <rect x="612" y="96" width="258" height="56" rx="12" fill="#0b1723" stroke="#203344"/>
+    <text x="630" y="131" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="21" fill="#edf5fa">Layer ranking</text>
+
+    <rect x="612" y="164" width="258" height="56" rx="12" fill="#0b1723" stroke="#203344"/>
+    <text x="630" y="199" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="21" fill="#edf5fa">Timeline map</text>
+
+    <rect x="612" y="232" width="258" height="56" rx="12" fill="#0b1723" stroke="#203344"/>
+    <text x="630" y="267" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="21" fill="#edf5fa">Artifact metrics</text>
+
+    <rect x="612" y="300" width="258" height="56" rx="12" fill="#0b1723" stroke="#203344"/>
+    <text x="630" y="335" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="21" fill="#edf5fa">Detector telemetry</text>
+  </g>
+
+  <path d="M878 154 L888 162 L878 170" fill="none" stroke="#2a465a" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g id="stage-compare">
+    <text x="894" y="52" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+          font-size="18" letter-spacing="2" fill="#23b7e5">04 · COMPARE</text>
+    <rect x="894" y="70" width="258" height="2" fill="#203344"/>
+    <rect x="894" y="96" width="258" height="132" rx="12" fill="#0b1723" stroke="#f4ad28"/>
+    <text x="912" y="136" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="22" font-weight="600" fill="#f4ad28">Version B − A</text>
+    <text x="912" y="168" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="20" fill="#91a3b3">did the edit move</text>
+    <text x="912" y="196" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif"
+          font-size="20" fill="#91a3b3">the number, or not?</text>
+  </g>
+
+  <rect x="48" y="378" width="1104" height="2" fill="#203344"/>
+  <text x="48" y="412" font-family="ui-monospace,SFMono-Regular,Menlo,monospace"
+        font-size="19" fill="#5f7488">Nothing leaves the machine · every run is stored under data/runs/&lt;run_id&gt;/</text>
+</svg>
