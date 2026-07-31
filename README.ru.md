@@ -23,17 +23,15 @@
 осмысленными, даже когда две модели расходятся.
 
 <p align="center">
-  <video src="./assets/readme/demo.mp4" poster="./assets/readme/demo-poster.jpg"
-         controls preload="metadata" width="100%">
-    <a href="./assets/readme/demo.mp4"><img src="./assets/readme/demo-poster.jpg" width="100%"
-       alt="Интерфейс AI Music Lab во время анализа трека: рядом карточки score детекторов lofcz и FST, оба показывают высокую оценку, ниже спектрограмма и вкладки нативной телеметрии"></a>
-  </video>
+  <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4">
+    <img src="./assets/readme/demo-poster.jpg" width="100%"
+         alt="Интерфейс AI Music Lab во время анализа трека: рядом карточки score детекторов lofcz и FST, оба показывают высокую оценку, ниже спектрограмма и вкладки нативной телеметрии">
+  </a>
 </p>
 
 <p align="center"><sub>
-  30 секунд реального прогона, без звука: один MP3 на входе, оба детектора сходятся,
-  спектрограмма и нативная телеметрия.
-  <a href="./assets/readme/demo.mp4">Открыть видео</a>, если оно здесь не проигрывается.
+  ▶ <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4"><b>Посмотреть 30-секундное демо</b></a>
+  — один MP3 на входе, оба детектора сходятся, спектрограмма и нативная телеметрия. Без звука.
 </sub></p>
 
 ## Как это работает

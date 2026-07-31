@@ -24,16 +24,15 @@ layers carry the most, a timeline of which seconds are strongest, and signal mea
 that stay meaningful even when the two models disagree.
 
 <p align="center">
-  <video src="./assets/readme/demo.mp4" poster="./assets/readme/demo-poster.jpg"
-         controls preload="metadata" width="100%">
-    <a href="./assets/readme/demo.mp4"><img src="./assets/readme/demo-poster.jpg" width="100%"
-       alt="The AI Music Lab interface analysing a track: lofcz and FST score cards side by side, both reading high, above a spectrogram and the detector telemetry tabs"></a>
-  </video>
+  <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4">
+    <img src="./assets/readme/demo-poster.jpg" width="100%"
+         alt="The AI Music Lab interface analysing a track: lofcz and FST score cards side by side, both reading high, above a spectrogram and the detector telemetry tabs">
+  </a>
 </p>
 
 <p align="center"><sub>
-  30 seconds of a real run, no sound: one MP3 in, both detectors agreeing, spectrogram and
-  native telemetry. <a href="./assets/readme/demo.mp4">Open the video</a> if it does not play here.
+  ▶ <a href="https://github.com/bionicle12/ai-music-lab/raw/refs/heads/main/assets/readme/demo.mp4"><b>Watch the 30-second demo</b></a>
+  — one MP3 in, both detectors agreeing, spectrogram and native telemetry. No sound.
 </sub></p>
 
 ## How it works
