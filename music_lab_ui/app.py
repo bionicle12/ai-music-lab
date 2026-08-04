@@ -52,14 +52,41 @@ from .midi_preview import (
     read_midi,
 )
 from .muscriptor import AdapterError, instrument_choices
-from .readiness import can_transcribe
+from .provisioning import ProvisioningError, agent_prompt
+from .readiness import DETECTOR_REQUIREMENTS, can_transcribe
+
+#: Failure codes that have a sentence of their own. Anything else falls back to
+#: showing the detail as-is rather than to a missing-key crash.
+PROVISION_CODES: frozenset[str] = frozenset(
+    {
+        "provision.no_conda",
+        "provision.occupied",
+        "provision.stalled",
+        "provision.timeout",
+        "provision.failed",
+        "provision.checksum",
+    }
+)
+
+#: The detectors that have a settings dialog, in interface order. Derived from
+#: the readiness table so the two cannot drift apart.
+DETECTOR_NAMES: tuple[str, ...] = tuple(
+    item.detector for item in DETECTOR_REQUIREMENTS
+)
 from .restart import is_loopback, schedule_restart
-from .settings import MODEL_SIZES, resolve_token, token_fingerprint
+from .settings import (
+    FST_BACKBONE_CHOICES,
+    MODEL_SIZES,
+    resolve_token,
+    token_fingerprint,
+)
 from .ui_presenters import (
     artifact_rows,
     comparison_metric_rows,
     detector_cards,
     detector_delta_rows,
+    detector_readiness_html,
+    detector_upstream_html,
     history_rows,
     layer_rows,
     file_card_html,
@@ -250,6 +277,9 @@ LAB_PALETTE: dict[str, str] = {
     "lab_danger": "*lab_red",
     # Masked, so the stroke colour inside is irrelevant.
     "restart_icon": 'url("data:image/svg+xml;utf8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3E%3Cpath d=\'M13.4 8a5.4 5.4 0 1 1-1.6-3.8\' fill=\'none\' stroke=\'%23000\' stroke-width=\'1.7\' stroke-linecap=\'round\'/%3E%3Cpath d=\'M12.4 1.7v3h-3\' fill=\'none\' stroke=\'%23000\' stroke-width=\'1.7\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E")',
+    # Neither vendored font carries a gear, and `gr.Button` escapes its value,
+    # so an inline <svg> would print as source. A mask takes `currentColor`.
+    "gear_icon": 'url("data:image/svg+xml;utf8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3E%3Ccircle cx=\'8\' cy=\'8\' r=\'2.4\' fill=\'none\' stroke=\'%23000\' stroke-width=\'1.5\'/%3E%3Cpath d=\'M8 1.2v1.9M8 12.9v1.9M14.8 8h-1.9M3.1 8H1.2M12.8 3.2l-1.35 1.35M4.55 11.45L3.2 12.8M12.8 12.8l-1.35-1.35M4.55 4.55L3.2 3.2\' fill=\'none\' stroke=\'%23000\' stroke-width=\'1.5\' stroke-linecap=\'round\'/%3E%3C/svg%3E")',
 }
 
 
@@ -426,6 +456,94 @@ def _settings_panel(
     return panel, controls
 
 
+def _detector_panel(
+    detector: str,
+    service: AnalysisService,
+    t: Translator,
+) -> tuple[Any, dict[str, Any]]:
+    """One dialog per detector: is it able to run, and how will it run.
+
+    Built per detector rather than as one dialog whose contents swap: Gradio
+    components are declared once, so a shared dialog would mean either
+    rebuilding it on every open or hiding rows that belong to the other
+    detector. Two detectors is little enough duplication to prefer the version
+    that is obvious to read.
+    """
+    settings = service.settings()
+    controls: dict[str, Any] = {}
+    with gr.Column(
+        visible=False,
+        elem_classes="settings-modal detector-modal",
+    ) as panel:
+        with gr.Row(elem_classes="settings-modal-head"):
+            gr.Markdown(t("detector.settings.title", detector=detector))
+            controls["close"] = gr.Button(
+                "✕",
+                elem_classes="settings-close",
+                scale=0,
+                min_width=44,
+            )
+
+        gr.Markdown(f"#### {t('detector.settings.state')}")
+        controls["readiness"] = gr.HTML(
+            detector_readiness_html(detector, service.detector_readiness(detector), t)
+        )
+        with gr.Row():
+            controls["install"] = gr.Button(
+                t("provision.install"), variant="primary"
+            )
+            controls["recheck"] = gr.Button(t("provision.recheck"))
+        controls["log"] = gr.Textbox(
+            label=t("provision.log"),
+            lines=8,
+            max_lines=8,
+            interactive=False,
+            visible=False,
+            elem_classes="provision-log",
+        )
+        # Filled only when a step fails. A failed install is a place people get
+        # stuck, and the way out is a tool that can read the error — so the
+        # prompt is handed over already written rather than described.
+        controls["handover"] = gr.Textbox(
+            label=t("provision.handover"),
+            lines=6,
+            max_lines=10,
+            visible=False,
+            elem_classes="provision-handover",
+        )
+        gr.HTML(disclosure_html("provision/manual", t))
+
+        gr.Markdown(f"#### {t('detector.settings.run')}")
+        if detector == "FST":
+            controls["batch"] = gr.Radio(
+                choices=[
+                    (t(f"detector.fst.batch.{value}"), value)
+                    for value in FST_BACKBONE_CHOICES
+                ],
+                value=settings.fst_backbone_batch,
+                label=t("detector.fst.batch.label"),
+            )
+            gr.HTML(disclosure_html("fst/batch", t))
+            controls["save"] = gr.Button(
+                t("detector.settings.save"), variant="primary"
+            )
+            controls["status"] = gr.Markdown("", elem_classes="restart-status")
+        else:
+            # The timeline's window and hop are the only lofcz parameters, and
+            # they already have sliders on the tab that uses them. Repeating
+            # them here would create a second place to set the same thing.
+            gr.Markdown(t("detector.settings.none"), elem_classes="method-note")
+
+        gr.Markdown(f"#### {t('detector.settings.upstream')}")
+        # Empty at build time and filled when the dialog opens: reading a
+        # clone's HEAD means running git, and building the interface must not
+        # spawn processes — a test holds that line, and it is the reason
+        # starting the app is instant on a machine with three clones on it.
+        controls["upstream"] = gr.HTML("")
+        controls["close_bottom"] = gr.Button(t("detector.settings.close"))
+    return panel, controls
+
+
 def _token_status(service: AnalysisService, t: Translator) -> str:
     token, source = resolve_token(service.settings())
     if source == "env":
@@ -596,6 +714,10 @@ def build_app(
         # does not do that: the sticky sidebar it used to live in trapped it
         # behind the analysis canvas no matter how high its z-index went.
         settings_panel, settings_controls = _settings_panel(analysis_service, t)
+        detector_panels = {
+            name: _detector_panel(name, analysis_service, t)
+            for name in DETECTOR_NAMES
+        }
 
         with gr.Row(elem_classes="lab-shell"):
             with gr.Column(
@@ -660,6 +782,20 @@ def build_app(
                     value=["lofcz", "FST"],
                     label=t("app.detectors.label"),
                 )
+                # A gear per detector rather than one shared settings screen:
+                # what each dialog holds — which clone, which weights, which
+                # parameters — is specific to that detector, and a combined list
+                # would say "clone" three times without saying whose.
+                with gr.Row(elem_classes="detector-gears"):
+                    detector_gear_buttons = {
+                        name: gr.Button(
+                            name,
+                            elem_classes="detector-gear",
+                            variant="secondary",
+                            min_width=0,
+                        )
+                        for name in DETECTOR_NAMES
+                    }
 
                 analyze_button = gr.Button(
                     t("app.analyze"),
@@ -1493,6 +1629,170 @@ def build_app(
                 fn=lambda: (False, gr.update(visible=False)),
                 outputs=[settings_open, settings_panel],
             )
+
+        # ---- per-detector dialogs -----------------------------------------
+
+        all_panels = [settings_panel] + [
+            panel for panel, _ in detector_panels.values()
+        ]
+
+        def open_detector_panel(name: str, with_batch: bool):
+            """Show one dialog, hide every other, and re-read everything in it.
+
+            Re-reading the checklist matters because a clone can appear, an
+            environment can be built and a checkpoint can be copied in while the
+            page stays open; one rendered at startup would keep insisting the
+            detector is broken.
+
+            Re-reading the *parameters* matters for the opposite reason. The
+            controls keep whatever was last clicked, so choosing a value and
+            closing without saving left the dialog showing a setting that was
+            never stored — it would have taken one wrong run to notice.
+            """
+
+            def handler():
+                updates = [
+                    gr.update(visible=(panel is detector_panels[name][0]))
+                    for panel in all_panels
+                ]
+                payload = [
+                    False,
+                    *updates,
+                    detector_readiness_html(
+                        name, analysis_service.detector_readiness(name), t
+                    ),
+                    detector_upstream_html(
+                        name, analysis_service.detector_upstream(name), t
+                    ),
+                ]
+                if with_batch:
+                    payload.append(
+                        gr.update(value=analysis_service.settings().fst_backbone_batch)
+                    )
+                    payload.append("")
+                return tuple(payload)
+
+            return handler
+
+        for name, button in detector_gear_buttons.items():
+            controls = detector_panels[name][1]
+            outputs = [
+                settings_open,
+                *all_panels,
+                controls["readiness"],
+                controls["upstream"],
+            ]
+            if "batch" in controls:
+                outputs.append(controls["batch"])
+                outputs.append(controls["status"])
+            button.click(
+                fn=open_detector_panel(name, "batch" in controls),
+                outputs=outputs,
+            )
+            for key in ("close", "close_bottom"):
+                controls[key].click(
+                    fn=lambda: gr.update(visible=False),
+                    outputs=detector_panels[name][0],
+                )
+
+        def install_detector(name: str):
+            """Run the missing steps, streaming the log as they go.
+
+            Refuses on a non-loopback bind for the same reason the restart
+            button does: cloning repositories and building environments on
+            somebody else's machine from a web page is not a thing to make
+            possible by accident.
+            """
+
+            def handler():
+                host = os.environ.get("AI_MUSIC_UI_HOST", "127.0.0.1")
+                if not is_loopback(host):
+                    yield (
+                        gr.update(value=t("restart.remote"), visible=True),
+                        gr.update(),
+                        gr.update(visible=False),
+                    )
+                    return
+
+                lines: list[str] = []
+                commands: list[list[str]] = []
+                try:
+                    for line in analysis_service.provision_detector(name):
+                        lines.append(line)
+                        if line.startswith("$ "):
+                            commands.append([line[2:]])
+                        yield (
+                            gr.update(value="\n".join(lines), visible=True),
+                            gr.update(),
+                            gr.update(visible=False),
+                        )
+                except ProvisioningError as error:
+                    message = t(
+                        f"provision.{error.code}"
+                        if f"provision.{error.code}" in PROVISION_CODES
+                        else "provision.error",
+                        detail=error.detail,
+                    )
+                    lines.append(message)
+                    yield (
+                        gr.update(value="\n".join(lines), visible=True),
+                        gr.update(),
+                        gr.update(
+                            value=agent_prompt(
+                                name,
+                                error.code,
+                                analysis_service.paths,
+                                commands or [["conda"]],
+                                log="\n".join(lines),
+                            ),
+                            visible=True,
+                        ),
+                    )
+                    return
+
+                lines.append(t("provision.done"))
+                yield (
+                    gr.update(value="\n".join(lines), visible=True),
+                    detector_readiness_html(
+                        name, analysis_service.detector_readiness(name), t
+                    ),
+                    gr.update(visible=False),
+                )
+
+            return handler
+
+        for name in DETECTOR_NAMES:
+            controls = detector_panels[name][1]
+            controls["install"].click(
+                fn=install_detector(name),
+                outputs=[
+                    controls["log"],
+                    controls["readiness"],
+                    controls["handover"],
+                ],
+            )
+            controls["recheck"].click(
+                fn=(
+                    lambda captured=name: detector_readiness_html(
+                        captured, analysis_service.detector_readiness(captured), t
+                    )
+                ),
+                outputs=[controls["readiness"]],
+            )
+
+        def save_fst_batch(batch: int):
+            current = analysis_service.settings()
+            analysis_service.save_settings(
+                replace(current, fst_backbone_batch=int(batch))
+            )
+            return t("detector.settings.saved")
+
+        fst_controls = detector_panels["FST"][1]
+        fst_controls["save"].click(
+            fn=save_fst_batch,
+            inputs=[fst_controls["batch"]],
+            outputs=[fst_controls["status"]],
+        )
 
         def refreshed_readiness(*, probe: bool = False):
             report = analysis_service.readiness(probe=probe)

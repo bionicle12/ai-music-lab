@@ -63,24 +63,36 @@ stereo track at 44.1 kHz.
 | --- | ---: | ---: | --- |
 | Interface, charts, artifact metrics | none — CPU only | seconds | time only |
 | lofcz | 0.5 GB | 8 s | barely |
-| FST | **16 GB** | 25 s | **neither** |
+| FST | 4.8 GB (16 GB as upstream ships it) | 21 s | **neither** |
 | muscriptor `large` | 11 GB | 50 s per 30 s of audio | time only |
 | muscriptor `medium` / `small` | not measured | — | — |
 
 Two of those rows need explaining, because both are counter-intuitive.
 
-**FST sets the floor, and it does not care how long your track is.** It always runs 48
-ten-second segments: a short file is padded up to 48 rather than run as fewer. A 32-second file
-and an eight-minute file cost the same 16 GB — measured, not assumed. That is how the upstream
-batches, not a knob this wrapper can turn. The practical consequence: **a card below 24 GB runs
-everything here except FST**, and 12 GB is a perfectly good machine for lofcz, the artifact
-metrics, the timeline map and MIDI export.
+**FST does not care how long your track is.** It always runs 48 ten-second segments: a short
+file is padded up to 48 rather than run as fewer. A 32-second file and an eight-minute file cost
+the same — measured, not assumed.
+
+It also does not need the 16 GB upstream asks for. Those 48 segments go through the backbone in
+one forward pass, but they are independent until the Stage-2 classifier mixes them, so the
+adapter feeds them in slices of eight: **4.8 GB instead of 16, in the same time** — the GPU was
+never the bottleneck. `--backbone-batch 0` restores the single-pass behaviour exactly.
+
+That is a change to how a published model is run, so it was measured rather than assumed. Of
+three tracks, two produced identical output and one moved the raw logit by a single float16
+ulp (`6.0546875` → `6.05859375`) with prediction and every reported probability unchanged. Each
+batch size reproduces itself exactly — three runs, same value — so this is reduction order, not
+chance. The batch size is recorded in the run's telemetry, because a score has to be able to say
+what produced it.
 
 **muscriptor spends length on time, not on memory.** It transcribes in five-second chunks, so a
 three-minute track is around forty of them — expect minutes, not seconds. `large` is 1.4B
 parameters in fp32. `medium` and `small` exist precisely for smaller cards, and their downloads
 are 1.2 GB and 0.4 GB against 5.6 GB, but I have only measured `large` and will not publish a
 number I did not take.
+
+So the ceiling is now transcription, not detection: **8 GB of VRAM runs every detector here**, and
+12 GB adds MIDI export at `large`.
 
 Disk: ~1.4 GB for the two detector checkpoints, ~0.6 GB for the MERT embeddings FST fetches on
 its first run, and 0.4–5.6 GB for whichever transcription weights you download. The transcription
@@ -201,10 +213,12 @@ pinned at a commit, so adding one is a matter of an adapter and an environment r
 vendoring somebody's code. Two models that disagree already tell you more than one; four will
 tell you more than two.
 
-**Per-detector configuration in the interface.** Thresholds, window and segment lengths, and
-device choice currently live in adapter defaults. They belong in the settings panel, saved per
-detector and recorded into the run — a saved score should always be able to say which settings
-produced it.
+**Per-detector configuration and setup in the interface.** Done: each detector has a gear beside
+its checkbox that opens its own dialog — whether it can run at all (clone, environment, weights,
+with the paths), which upstream commit it is on, its run parameters, and a button that installs
+whatever is missing. FST's backbone batch is the first such parameter, and the settings a run
+used are written into the run file, because a saved score should always be able to say what
+produced it. Thresholds and window lengths are still adapter defaults.
 
 **macOS.** Planned, not promised, and gated on hardware — see just below.
 

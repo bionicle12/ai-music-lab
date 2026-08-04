@@ -470,3 +470,31 @@ def test_a_dropped_file_is_drawn_before_it_is_analysed() -> None:
 
     assert on_upload, "nothing happens when a file is dropped"
     assert any(strip_id in dependency["outputs"] for dependency in on_upload)
+
+
+def test_opening_a_detector_dialog_rereads_its_stored_parameters() -> None:
+    """The controls keep whatever was last clicked. Without re-reading, picking
+    a value and closing without saving leaves the dialog showing a setting that
+    was never stored — visible only as one wrong run later."""
+    config = build_app().get_config_file()
+    gears = [
+        component["id"]
+        for component in config["components"]
+        if "detector-gear" in (component.get("props", {}).get("elem_classes") or [])
+    ]
+    radios = {
+        component["id"]
+        for component in config["components"]
+        if component.get("props", {}).get("label") == t("detector.fst.batch.label")
+    }
+
+    assert len(gears) == 2 and radios
+
+    on_open = [
+        dependency
+        for dependency in config["dependencies"]
+        for gear in gears
+        if [gear, "click"] in [list(target) for target in dependency["targets"]]
+    ]
+
+    assert any(radios & set(dependency["outputs"]) for dependency in on_open)

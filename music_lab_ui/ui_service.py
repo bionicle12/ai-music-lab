@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+import subprocess
 from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable
 
 from . import muscriptor as muscriptor_runner
+from . import provisioning
 from . import readiness as readiness_module
 from . import repositories
 from .artifact_metrics import ArtifactMetrics, measure_artifacts
@@ -38,6 +40,10 @@ class AnalysisOutcome:
     run: AnalysisRun
     features: AudioFeatures
     telemetry: dict[str, DetectorTelemetry] = field(default_factory=dict)
+    #: The per-detector settings this run was produced with. Saved alongside
+    #: the results, because a score is only comparable with another one when
+    #: you can see that both were measured the same way.
+    settings: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -132,11 +138,13 @@ class AnalysisService:
         if progress:
             progress(translate("progress.features"), 0.02)
         features = self.feature_extractor(source)
+        options = self.detector_options()
         detector_results = self.detector_runner(
             source,
             selected,
             self.paths,
             progress,
+            options=options,
         )
         telemetry: dict[str, DetectorTelemetry] = {}
         results: list[DetectorResult] = []
@@ -152,7 +160,7 @@ class AnalysisService:
             results.append(replace(result, raw=raw))
         if progress:
             progress(translate("progress.saving"), 0.96)
-        run = self.history.save_run(source, features, results, note)
+        run = self.history.save_run(source, features, results, note, settings=options)
         if telemetry:
             self.history.save_telemetry(run.run_id, telemetry)
 
@@ -162,6 +170,7 @@ class AnalysisService:
             run=run,
             features=features,
             telemetry=telemetry,
+            settings=options,
         )
 
     def sweep_layers(
@@ -356,6 +365,99 @@ class AnalysisService:
         if probe:
             runner = lambda: self.probe_runner(self.paths, token)  # noqa: E731
         return readiness_module.evaluate(self.paths, settings, probe=runner)
+
+    def detector_options(self) -> dict[str, Any]:
+        """The settings a detector run is allowed to see.
+
+        Named explicitly rather than handing over ``LabSettings``: that object
+        also holds the Hugging Face token, and nothing that runs a detector has
+        any business being able to read it.
+        """
+        settings = self.settings()
+        return {"fst_backbone_batch": settings.fst_backbone_batch}
+
+    def conda_executable(self) -> str | None:
+        """Conda is a precondition, not something this app installs."""
+        return provisioning.conda_executable()
+
+    def detector_downloads(self, detector: str) -> list[tuple[Any, Path, bool]]:
+        """``(download, destination, present_and_verified)`` for one detector."""
+        catalogue = provisioning.load_downloads(self.paths.root)
+        rows = []
+        for key in provisioning.WEIGHT_KEYS.get(detector, ()):
+            item = catalogue[key]
+            destination = getattr(
+                self.paths, provisioning.WEIGHT_DESTINATIONS[key]
+            )
+            rows.append((item, destination, provisioning.verify(destination, item)))
+        return rows
+
+    def provision_detector(self, detector: str) -> Iterator[str]:
+        """Do whatever is still missing, in order, narrating as it goes.
+
+        A generator rather than a function that returns a log: `conda create`
+        takes minutes, and an interface that shows nothing until it finishes is
+        indistinguishable from one that has hung.
+
+        Every step is skipped when its work is already done, so this is safe to
+        press again after fixing one thing by hand — which is the whole point,
+        because the step most likely to fail is the one this cannot retry
+        usefully.
+        """
+        spec = readiness_module.DETECTOR_REQUIREMENTS_BY_KEY.get(detector)
+        if spec is None:
+            raise provisioning.ProvisioningError("unknown", detector)
+
+        repo = repositories.REPOSITORIES_BY_KEY[spec.repo_key]
+        report = self.detector_readiness(detector)
+        state = {item.key: item.ok for item in report.items}
+
+        if not state.get("clone"):
+            provisioning.check_clone_target(repo, self.paths)
+            command = provisioning.clone_command(repo, self.paths)
+            yield f"$ {subprocess.list2cmdline(command)}"
+            yield from provisioning.stream_command(command, cwd=self.paths.root)
+
+        if not state.get("env"):
+            conda = self.conda_executable()
+            if conda is None:
+                raise provisioning.ProvisioningError("no_conda", "")
+            for command in provisioning.environment_commands(
+                detector, self.paths, conda
+            ):
+                yield f"$ {subprocess.list2cmdline(command)}"
+                yield from provisioning.stream_command(command, cwd=self.paths.root)
+
+        if not state.get("weights"):
+            for item, destination, present in self.detector_downloads(detector):
+                if present:
+                    continue
+                if not item.automatable:
+                    # Google Drive has no stable direct URL for a file this
+                    # size. Saying so is the honest outcome; pretending to try
+                    # would fail in a way nobody could act on.
+                    yield f"! {item.filename}: {item.url} -> {destination}"
+                    continue
+                yield f"$ download {item.filename}"
+                yield from provisioning.download_weight(item, self.paths)
+
+    def detector_readiness(self, detector: str) -> readiness_module.ReadinessReport:
+        """Clone, environment, weights — for one detector, without running it."""
+        return readiness_module.evaluate_detector(detector, self.paths)
+
+    def detector_upstream(self, detector: str):
+        """The clone's status, or ``None`` when git cannot describe it.
+
+        ``fetch=False`` on purpose: this is drawn every time a settings dialog
+        opens, and a network round-trip per open would make the dialog feel
+        broken on a machine that is offline — which is most of them, by design.
+        """
+        spec = readiness_module.DETECTOR_REQUIREMENTS_BY_KEY.get(detector)
+        if spec is None:
+            return None
+        repo = repositories.REPOSITORIES_BY_KEY[spec.repo_key]
+        status = repositories.read_status(repo, self.paths, fetch=False)
+        return status if status.present else None
 
     def repository_statuses(self, *, fetch: bool = True) -> tuple:
         return self.repository_reader(self.paths, fetch=fetch)

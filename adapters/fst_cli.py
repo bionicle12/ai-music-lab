@@ -11,6 +11,11 @@ from typing import Any, Iterator
 import numpy as np
 
 
+#: Segments per backbone forward pass. 4.8 GB of VRAM instead of 16 for the same
+#: answer in the same time; ``0`` restores the upstream single-batch behaviour.
+DEFAULT_BACKBONE_BATCH = 8
+
+
 @dataclass(frozen=True)
 class DetectorPaths:
     upstream: Path
@@ -81,7 +86,10 @@ def upstream_import_context(upstream: Path) -> Iterator[None]:
             sys.path.pop(0)
 
 
-def analyze(paths: DetectorPaths) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
+def analyze(
+    paths: DetectorPaths,
+    backbone_batch: int = DEFAULT_BACKBONE_BATCH,
+) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
     validate_paths(paths)
     with upstream_import_context(paths.upstream):
         import torch
@@ -147,8 +155,30 @@ def analyze(paths: DetectorPaths) -> tuple[dict[str, Any], dict[str, np.ndarray]
         backbone.eval()
         segments = segments.to(device=device, dtype=torch.float32)
         padding_mask = padding_mask.to(device).unsqueeze(0)
+        # The segments are independent here — they are only mixed later, by the
+        # Stage-2 classifier — so the backbone can be fed in slices. Upstream
+        # sends all 48 at once, which peaks at 16 GB of VRAM and puts FST out of
+        # reach of every card below 24 GB. In slices of 8 the same run peaks at
+        # 4.8 GB and takes the same time; the GPU was never the bottleneck.
+        #
+        # Measured on three tracks: two produced byte-identical output, the
+        # third moved the raw logit by one float16 ulp (6.0546875 -> 6.05859375)
+        # while prediction and every reported probability stayed the same. Each
+        # batch size is repeatable on its own — three runs, same value — so this
+        # is a reduction-order artifact, not a coin toss. It does mean a saved
+        # score is tied to the batch size that produced it, like every other
+        # part of the run.
         with torch.no_grad():
-            stage1_logits, embedding = backbone(segments.squeeze(1))
+            flat = segments.squeeze(1)
+            step = backbone_batch if backbone_batch > 0 else flat.shape[0]
+            logit_slices = []
+            embedding_slices = []
+            for start in range(0, flat.shape[0], step):
+                part_logits, part_embedding = backbone(flat[start : start + step])
+                logit_slices.append(part_logits)
+                embedding_slices.append(part_embedding)
+            stage1_logits = torch.cat(logit_slices, dim=0)
+            embedding = torch.cat(embedding_slices, dim=0)
         classifier = MusicAudioClassifier.load_from_checkpoint(
             checkpoint_path=str(paths.stage2),
             map_location=device,
@@ -207,6 +237,10 @@ def analyze(paths: DetectorPaths) -> tuple[dict[str, Any], dict[str, np.ndarray]
                     "valid_segment_count": valid_segments,
                     "padded_segment_count": 48 - valid_segments,
                     "maximum_segments": 48,
+                    # Recorded because it can move the raw logit by one float16
+                    # ulp: a saved score has to be able to say which batch size
+                    # produced it.
+                    "backbone_batch": step,
                     "stage1_class_mapping": "not published by upstream; both class probabilities are preserved",
                 },
                 "warnings": [
@@ -226,13 +260,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--audio", type=Path, required=True)
     parser.add_argument("--json-output", type=Path)
     parser.add_argument("--npz-output", type=Path)
+    parser.add_argument(
+        "--backbone-batch",
+        type=int,
+        default=DEFAULT_BACKBONE_BATCH,
+        help=(
+            "how many segments go through the backbone at once; "
+            "0 means all 48, as upstream does it, at 16 GB of VRAM"
+        ),
+    )
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
     result, arrays = analyze(
-        DetectorPaths(args.upstream, args.stage1, args.stage2, args.audio)
+        DetectorPaths(args.upstream, args.stage1, args.stage2, args.audio),
+        backbone_batch=args.backbone_batch,
     )
     rendered = json.dumps(result, indent=2, ensure_ascii=False)
     print(rendered)

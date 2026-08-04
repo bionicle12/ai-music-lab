@@ -169,6 +169,83 @@ _EN: dict[str, str] = {
         "Run the environment check in Settings to see what the adapter reports."
     ),
     "readiness.not_checked": "not checked",
+    # ---- per-detector settings -------------------------------------------
+    "detector.settings.open": "Settings",
+    "detector.settings.title": "{detector} · settings",
+    "detector.settings.state": "State",
+    "detector.settings.run": "Run parameters",
+    "detector.settings.upstream": "Upstream",
+    "detector.settings.none": (
+        "Nothing to set for this detector yet — it runs the upstream defaults."
+    ),
+    "detector.settings.save": "Save",
+    "detector.settings.saved": "Saved. Applies to the next run.",
+    "detector.settings.close": "Close",
+    "detector.ready.item.clone": "Upstream clone",
+    "detector.ready.item.env": "Conda environment",
+    "detector.ready.item.weights": "Weights",
+    "detector.ready.ok": "Ready to run.",
+    "detector.ready.blocked": "Cannot run — {detail}",
+    "detector.ready.fix.clone": (
+        "Clone the upstream repository next to this one — see Getting started."
+    ),
+    "detector.ready.fix.env": (
+        "The environment's Python is not at that path. Create it, or point "
+        "`AI_MUSIC_*_PYTHON` at the one you have."
+    ),
+    "detector.ready.fix.weights": (
+        "Download the checkpoints into `models/` — sources and checksums are on "
+        "the Models page."
+    ),
+    "provision.install": "Install what is missing",
+    "provision.recheck": "Check again",
+    "provision.log": "Progress",
+    "provision.handover": "Hand this to a coding agent",
+    "provision.done": "Done. Re-checked above.",
+    "provision.no_conda": (
+        "Conda was not found. It is a prerequisite, not something this app "
+        "installs — get Miniconda, then come back."
+    ),
+    "provision.occupied": (
+        "That folder already has files in it and will not be cloned over: {detail}"
+    ),
+    "provision.stalled": (
+        "The step went silent and was stopped — usually a prompt waiting for "
+        "input, which cannot be answered from here. {detail}"
+    ),
+    "provision.timeout": "The step ran too long and was stopped. {detail}",
+    "provision.failed": "The step failed. {detail}",
+    "provision.checksum": (
+        "The download did not match its published checksum and was discarded: "
+        "{detail}"
+    ),
+    "provision.error": "{detail}",
+    "disc.provision.manual.title": "Two checkpoints have to be fetched by hand",
+    "disc.provision.manual.body": (
+        "FST's `Stage-1.ckpt` and `Stage-2.ckpt` live on Google Drive, which "
+        "serves files this large behind a confirmation page — there is no "
+        "stable direct link to automate. The install step prints both URLs and "
+        "the exact paths they belong at; drop the files there and press "
+        "**Check again**, and the checksums are verified before anything goes "
+        "green. Everything else — the clone, the environment, the small ONNX "
+        "model — is automated."
+    ),
+    "detector.upstream.repository": "Repository",
+    "detector.upstream.head": "HEAD",
+    "detector.upstream.match": "the verified commit",
+    "detector.upstream.drift": "verified against {pinned}",
+    "detector.upstream.missing": "no clone found",
+    "detector.fst.batch.title": "Why this is the whole memory question",
+    "detector.fst.batch.label": "Segments per backbone pass",
+    "detector.fst.batch.4": "4 · 3.7 GB of VRAM",
+    "detector.fst.batch.8": "8 · 4.8 GB",
+    "detector.fst.batch.0": "all 48 · 16 GB, as upstream runs it",
+    "detector.fst.batch.note": (
+        "FST always processes 48 ten-second segments, padding short files up to "
+        "48, so this is the whole of its memory appetite. The segments are "
+        "independent until Stage-2 mixes them, and the measured times are the "
+        "same for every choice."
+    ),
     # ---- upstream repositories -------------------------------------------
     "table.repo.name": "Repository",
     "table.repo.head": "HEAD",
@@ -922,6 +999,84 @@ _RU: dict[str, str] = {
         "сообщает адаптер."
     ),
     "readiness.not_checked": "не проверялось",
+    # ---- per-detector settings -------------------------------------------
+    "detector.settings.open": "Настройки",
+    "detector.settings.title": "{detector} · настройки",
+    "detector.settings.state": "Состояние",
+    "detector.settings.run": "Параметры запуска",
+    "detector.settings.upstream": "Апстрим",
+    "detector.settings.none": (
+        "У этого детектора пока нечего настраивать — он работает на умолчаниях "
+        "апстрима."
+    ),
+    "detector.settings.save": "Сохранить",
+    "detector.settings.saved": "Сохранено. Применится со следующего запуска.",
+    "detector.settings.close": "Закрыть",
+    "detector.ready.item.clone": "Клон апстрима",
+    "detector.ready.item.env": "Conda-среда",
+    "detector.ready.item.weights": "Веса",
+    "detector.ready.ok": "Готов к запуску.",
+    "detector.ready.blocked": "Запустить нельзя — {detail}",
+    "detector.ready.fix.clone": (
+        "Склонируйте репозиторий апстрима рядом с этим — см. «Начало работы»."
+    ),
+    "detector.ready.fix.env": (
+        "По этому пути нет Python нужной среды. Создайте её или укажите "
+        "существующую через `AI_MUSIC_*_PYTHON`."
+    ),
+    "detector.ready.fix.weights": (
+        "Скачайте контрольные точки в `models/` — источники и контрольные суммы "
+        "на странице «Модели»."
+    ),
+    "provision.install": "Доустановить недостающее",
+    "provision.recheck": "Проверить снова",
+    "provision.log": "Ход установки",
+    "provision.done": "Готово. Состояние выше перечитано.",
+    "provision.handover": "Передайте это ИИ-агенту",
+    "provision.no_conda": (
+        "Conda не найдена. Это предусловие, а не то, что приложение ставит "
+        "само, — установите Miniconda и возвращайтесь."
+    ),
+    "provision.occupied": (
+        "В этой папке уже есть файлы, поверх них клонировать не буду: {detail}"
+    ),
+    "provision.stalled": (
+        "Шаг замолчал и был остановлен — обычно это запрос ввода, ответить на "
+        "который отсюда нельзя. {detail}"
+    ),
+    "provision.timeout": "Шаг шёл слишком долго и был остановлен. {detail}",
+    "provision.failed": "Шаг завершился ошибкой. {detail}",
+    "provision.checksum": (
+        "Загруженный файл не сошёлся с опубликованной контрольной суммой и был "
+        "удалён: {detail}"
+    ),
+    "provision.error": "{detail}",
+    "disc.provision.manual.title": "Две контрольные точки придётся скачать руками",
+    "disc.provision.manual.body": (
+        "`Stage-1.ckpt` и `Stage-2.ckpt` для FST лежат на Google Drive, "
+        "который отдаёт файлы такого размера через страницу подтверждения — "
+        "стабильной прямой ссылки, которую можно автоматизировать, там нет. "
+        "Шаг установки печатает обе ссылки и точные пути, куда файлы должны "
+        "лечь; положите их туда и нажмите **Проверить снова** — контрольные "
+        "суммы сверяются до того, как что-нибудь позеленеет. Всё остальное — "
+        "клон, среда, маленькая ONNX-модель — делается само."
+    ),
+    "detector.upstream.repository": "Репозиторий",
+    "detector.upstream.head": "HEAD",
+    "detector.upstream.match": "проверенный коммит",
+    "detector.upstream.drift": "проверялось на {pinned}",
+    "detector.upstream.missing": "клон не найден",
+    "detector.fst.batch.title": "Почему это и есть весь вопрос по памяти",
+    "detector.fst.batch.label": "Сегментов за проход backbone",
+    "detector.fst.batch.4": "4 · 3,7 ГБ видеопамяти",
+    "detector.fst.batch.8": "8 · 4,8 ГБ",
+    "detector.fst.batch.0": "все 48 · 16 ГБ, как в апстриме",
+    "detector.fst.batch.note": (
+        "FST всегда обрабатывает 48 десятисекундных сегментов, дополняя ими "
+        "короткие файлы, — так что это и есть весь его аппетит к памяти. До "
+        "Stage-2 сегменты независимы, а замеренное время одинаково при любом "
+        "выборе."
+    ),
     # ---- upstream repositories -------------------------------------------
     "table.repo.name": "Репозиторий",
     "table.repo.head": "HEAD",

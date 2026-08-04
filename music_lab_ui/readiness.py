@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from .config import LabPaths
-from .repositories import REPOSITORIES_BY_KEY
+from .repositories import REPOSITORIES_BY_KEY, repo_path
 from .settings import LabSettings, resolve_token, token_fingerprint
 
 Probe = Callable[[], dict[str, Any]]
@@ -117,6 +117,76 @@ def evaluate(
         items=items,
         ready=all(item.ok is True for item in items),
         probed=probe is not None,
+    )
+
+
+#: What a detector needs before it can run. Three rows rather than muscriptor's
+#: six: a detector has no gated weights, so it has no licence to acknowledge and
+#: no token to hold, and adding those rows as permanent dashes would make the
+#: checklist harder to read rather than more uniform.
+@dataclass(frozen=True)
+class DetectorRequirements:
+    #: As the interface and the run history spell it — "FST", not "fst".
+    detector: str
+    #: As :mod:`music_lab_ui.repositories` spells it.
+    repo_key: str
+    python_attribute: str
+    weight_attributes: tuple[str, ...]
+
+
+DETECTOR_REQUIREMENTS: Final[tuple[DetectorRequirements, ...]] = (
+    DetectorRequirements("lofcz", "lofcz", "lofcz_python", ("lofcz_model",)),
+    DetectorRequirements("FST", "fst", "fst_python", ("fst_stage1", "fst_stage2")),
+)
+
+DETECTOR_REQUIREMENTS_BY_KEY: Final[dict[str, DetectorRequirements]] = {
+    item.detector: item for item in DETECTOR_REQUIREMENTS
+}
+
+DETECTOR_ITEM_KEYS: Final[tuple[str, ...]] = ("clone", "env", "weights")
+
+
+def evaluate_detector(
+    detector: str,
+    paths: LabPaths,
+    *,
+    exists: Exists = Path.is_file,
+) -> ReadinessReport:
+    """Can this detector run, and if not, which of the three pieces is missing.
+
+    The same three checks already exist inside :mod:`music_lab_ui.detectors`,
+    where a missing file becomes ``missing files: …`` on a result card *after*
+    someone has pressed Run analysis and waited. This is the same knowledge
+    offered before the wait, and with the paths named.
+    """
+    spec = DETECTOR_REQUIREMENTS_BY_KEY[detector]
+    repo = REPOSITORIES_BY_KEY[spec.repo_key]
+    root = repo_path(repo, paths)
+
+    missing_clone = [name for name in repo.required_files if not exists(root / name)]
+    interpreter = getattr(paths, spec.python_attribute)
+    weights = [getattr(paths, name) for name in spec.weight_attributes]
+    missing_weights = [path.name for path in weights if not exists(path)]
+
+    items = (
+        ReadinessItem(
+            "clone",
+            not missing_clone,
+            ", ".join(missing_clone) if missing_clone else str(root),
+        ),
+        ReadinessItem("env", exists(interpreter), str(interpreter)),
+        ReadinessItem(
+            "weights",
+            not missing_weights,
+            ", ".join(missing_weights)
+            if missing_weights
+            else ", ".join(path.name for path in weights),
+        ),
+    )
+    return ReadinessReport(
+        items=items,
+        ready=all(item.ok is True for item in items),
+        probed=False,
     )
 
 

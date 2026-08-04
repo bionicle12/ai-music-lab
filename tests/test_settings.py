@@ -7,10 +7,13 @@ from dataclasses import replace
 from pathlib import Path
 
 from music_lab_ui.settings import (
+    DEFAULT_FST_BACKBONE_BATCH,
     DEFAULT_MODEL,
     SETTINGS_VERSION,
     LabSettings,
     SettingsStore,
+    _MIGRATIONS,
+    migrate,
     resolve_token,
     token_fingerprint,
 )
@@ -57,13 +60,58 @@ def test_a_corrupt_file_falls_back_to_defaults_instead_of_raising(
     assert store.load_error
 
 
-def test_an_unknown_version_falls_back_to_defaults(tmp_path: Path) -> None:
+def test_a_version_from_the_future_falls_back_to_defaults(tmp_path: Path) -> None:
+    """A shape this build has never seen cannot be read by guessing at it."""
     path = tmp_path / "settings.json"
     path.write_text(json.dumps({"version": 99, "hf_token": "x"}), encoding="utf-8")
     store = SettingsStore(path)
 
     assert store.load() == LabSettings()
     assert "99" in (store.load_error or "")
+
+
+def test_an_older_file_is_migrated_rather_than_discarded(tmp_path: Path) -> None:
+    """The failure this prevents is silent: bumping the version used to send
+    `load` straight to defaults, which reads as the Hugging Face token having
+    vanished after an update — noticed a week later, when a download fails."""
+    path = tmp_path / "settings.json"
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "hf_token": "hf_secretvalue1234",
+                "muscriptor_model": "medium",
+                "muscriptor_weights": {"medium": "C:/cache/medium"},
+                "weights_license_accepted": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    store = SettingsStore(path)
+
+    loaded = store.load()
+
+    assert store.load_error is None
+    assert loaded.hf_token == "hf_secretvalue1234"
+    assert loaded.muscriptor_model == "medium"
+    assert loaded.muscriptor_weights == {"medium": "C:/cache/medium"}
+    assert loaded.weights_license_accepted is True
+    # Fields the old file never had arrive at their defaults, not at zero.
+    assert loaded.fst_backbone_batch == DEFAULT_FST_BACKBONE_BATCH
+    assert loaded.version == SETTINGS_VERSION
+
+
+def test_every_version_in_between_has_a_migration_step() -> None:
+    """A gap in the chain is a version that silently discards a settings file."""
+    assert set(_MIGRATIONS) == set(range(1, SETTINGS_VERSION))
+
+
+def test_a_version_that_is_not_a_number_is_refused() -> None:
+    """`True` is an int in Python, and version 1 must not be spelled `true`."""
+    assert migrate({"version": True}) is None
+    assert migrate({"version": "1"}) is None
+    assert migrate({"version": 0}) is None
+    assert migrate({}) is None
 
 
 def test_unknown_keys_are_dropped_rather_than_crashing(tmp_path: Path) -> None:

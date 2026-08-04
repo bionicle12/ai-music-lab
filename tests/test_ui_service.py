@@ -1,3 +1,5 @@
+import json
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -21,7 +23,7 @@ def write_tone(path: Path, seconds: float = 1.0, amplitude: float = 0.1) -> None
     sf.write(path, samples, sample_rate)
 
 
-def fake_runner(audio, selected, paths, progress=None):
+def fake_runner(audio, selected, paths, progress=None, options=None):
     return [
         DetectorResult(
             detector=name,
@@ -62,7 +64,7 @@ def test_load_features_for_3d_does_not_rerun_detectors(tmp_path: Path) -> None:
     write_tone(audio)
     detector_calls = 0
 
-    def counting_runner(audio, selected, paths, progress=None):
+    def counting_runner(audio, selected, paths, progress=None, options=None):
         nonlocal detector_calls
         detector_calls += 1
         return fake_runner(audio, selected, paths, progress)
@@ -83,7 +85,7 @@ def test_analysis_service_persists_transient_detector_telemetry(
     audio = tmp_path / "telemetry.wav"
     write_tone(audio)
 
-    def telemetry_runner(audio, selected, paths, progress=None):
+    def telemetry_runner(audio, selected, paths, progress=None, options=None):
         return [
             DetectorResult(
                 detector="lofcz",
@@ -336,3 +338,49 @@ def test_preview_refuses_what_the_run_would_refuse(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match=re.escape(t("error.unsupported_format"))):
         service.preview(str(unsupported))
+
+
+def test_the_run_records_the_settings_it_was_measured_with(tmp_path: Path) -> None:
+    """Two scores are only comparable if you can see both were measured the
+    same way. The FST batch size can move the raw logit, so a saved run that
+    cannot name it is not reproducible."""
+    service = service_fixture(tmp_path)
+    audio = tmp_path / "version.wav"
+    write_tone(audio)
+
+    outcome = service.analyze(str(audio), ["lofcz"], "")
+
+    saved = json.loads(outcome.run.result_path.read_text(encoding="utf-8"))
+    assert saved["settings"]["fst_backbone_batch"] == 8
+    assert outcome.settings == saved["settings"]
+
+
+def test_the_settings_a_detector_sees_never_include_the_token(tmp_path: Path) -> None:
+    """`detector_options` exists so a detector subprocess cannot be handed the
+    whole settings object, credential included."""
+    service = service_fixture(tmp_path)
+    service.save_settings(
+        replace(service.settings(), hf_token="hf_secretvalue1234")
+    )
+
+    options = service.detector_options()
+
+    assert "hf_token" not in options
+    assert "hf_secretvalue1234" not in json.dumps(options)
+
+
+def test_the_chosen_batch_size_reaches_the_detector(tmp_path: Path) -> None:
+    service = service_fixture(tmp_path)
+    audio = tmp_path / "version.wav"
+    write_tone(audio)
+    service.save_settings(replace(service.settings(), fst_backbone_batch=4))
+    seen: list[dict] = []
+
+    def recording_runner(audio, selected, paths, progress=None, options=None):
+        seen.append(dict(options or {}))
+        return fake_runner(audio, selected, paths, progress)
+
+    service.detector_runner = recording_runner
+    service.analyze(str(audio), ["FST"], "")
+
+    assert seen == [{"fst_backbone_batch": 4}]

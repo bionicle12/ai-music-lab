@@ -4,8 +4,13 @@ import sys
 import numpy as np
 import pytest
 
+from music_lab_ui import detectors
+
+from adapters import fst_cli
 from adapters.fst_cli import (
+    DEFAULT_BACKBONE_BATCH,
     DetectorPaths,
+    build_parser,
     mean_fusion_gate,
     self_similarity_matrix,
     stage1_class_probabilities,
@@ -94,3 +99,44 @@ def test_mean_fusion_gate_ignores_padded_segments() -> None:
     means = mean_fusion_gate(gates, valid_segments=2)
 
     assert means == pytest.approx([0.3, 0.9])
+
+
+def test_backbone_batch_defaults_to_eight_not_to_the_upstream_batch() -> None:
+    """Upstream sends all 48 segments through the backbone at once and peaks at
+    16 GB of VRAM, which is more than most cards have. Measured on three tracks,
+    eights peak at 4.8 GB in the same time."""
+    parsed = build_parser().parse_args(
+        ["--upstream", "u", "--stage1", "a", "--stage2", "b", "--audio", "c"]
+    )
+
+    assert parsed.backbone_batch == DEFAULT_BACKBONE_BATCH == 8
+
+
+def test_the_upstream_batch_is_still_reachable() -> None:
+    """Zero means "all of them", so a run can be reproduced exactly as upstream
+    would have done it."""
+    parsed = build_parser().parse_args(
+        [
+            "--upstream", "u", "--stage1", "a", "--stage2", "b", "--audio", "c",
+            "--backbone-batch", "0",
+        ]
+    )
+
+    assert parsed.backbone_batch == 0
+
+
+def test_the_run_records_which_batch_size_produced_it() -> None:
+    """The batch size can move the raw logit by one float16 ulp, so a saved
+    score that cannot say which one it used is not reproducible."""
+    source = Path(fst_cli.__file__).read_text(encoding="utf-8")
+
+    assert '"backbone_batch": step' in source
+
+
+def test_the_interface_passes_the_batch_size_explicitly() -> None:
+    """Relying on the adapter default would leave the value out of the command
+    line, and the command line is what documents a run."""
+    source = Path(detectors.__file__).read_text(encoding="utf-8")
+
+    assert "--backbone-batch" in source
+    assert detectors.FST_BACKBONE_BATCH == DEFAULT_BACKBONE_BATCH

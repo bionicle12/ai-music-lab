@@ -693,6 +693,69 @@ pre code,
   padding-bottom: 6px;
 }
 
+/* --- a gear per detector, under the detector checkboxes --- */
+.detector-gears {
+  gap: 6px;
+  margin: -4px 0 4px;
+}
+
+button.detector-gear {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--lab-line);
+  color: var(--lab-muted);
+  display: inline-flex;
+  font-size: 0.78rem;
+  gap: 6px;
+  justify-content: center;
+  padding: 5px 10px;
+}
+
+button.detector-gear::before {
+  background: currentColor;
+  content: "";
+  flex: 0 0 auto;
+  height: 13px;
+  mask: var(--gear-icon) center / contain no-repeat;
+  -webkit-mask: var(--gear-icon) center / contain no-repeat;
+  width: 13px;
+}
+
+button.detector-gear:hover {
+  border-color: var(--lab-cyan);
+  color: var(--lab-cyan-ink);
+}
+
+/* Command output and a prompt meant to be copied: both are code, not prose. */
+.provision-log textarea,
+.provision-handover textarea {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.detector-upstream {
+  display: grid;
+  font-size: 0.84rem;
+  gap: 4px 14px;
+  margin: 0;
+}
+
+.detector-upstream div {
+  display: flex;
+  gap: 10px;
+}
+
+.detector-upstream dt {
+  color: var(--lab-muted);
+  min-width: 92px;
+}
+
+.detector-upstream dd {
+  color: var(--lab-text-2);
+  margin: 0;
+}
+
 button.settings-close {
   background: transparent;
   border: none;

@@ -114,6 +114,7 @@ parser.add_argument("--stage2")
 parser.add_argument("--audio")
 parser.add_argument("--json-output")
 parser.add_argument("--npz-output")
+parser.add_argument("--backbone-batch", type=int)
 args = parser.parse_args()
 with open(args.json_output, "w", encoding="utf-8") as target:
     json.dump({

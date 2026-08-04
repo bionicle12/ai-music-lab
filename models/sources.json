@@ -1,14 +1,23 @@
 {
   "lofcz": {
     "filename": "ai_music_detector.onnx",
-    "url": "https://huggingface.co/lofcz/ai-music-detector/resolve/main/ai_music_detector.onnx?download=true"
+    "url": "https://huggingface.co/lofcz/ai-music-detector/resolve/main/ai_music_detector.onnx?download=true",
+    "automatable": true,
+    "size_bytes": 14795,
+    "sha256": "af7a75c6ed457bc5b6941c8bc76aa06a66d48de40db944b761ed2bebfc0fbbd3"
   },
   "fst_stage1": {
     "filename": "Stage-1.ckpt",
-    "url": "https://drive.google.com/file/d/1frT4Mn0l6rso407Sy3eWCKbZmgwuVceN/view"
+    "url": "https://drive.google.com/file/d/1frT4Mn0l6rso407Sy3eWCKbZmgwuVceN/view",
+    "automatable": false,
+    "size_bytes": 1287502845,
+    "sha256": "f9099df5c618a2f92bcd8f4ba48d1c6606f2e4610385b8eea4a03f1a7319629f"
   },
   "fst_stage2": {
     "filename": "Stage-2.ckpt",
-    "url": "https://drive.google.com/file/d/1E_xPsosYWI4UjKT8XQCbZW4ILvsWnmda/view"
+    "url": "https://drive.google.com/file/d/1E_xPsosYWI4UjKT8XQCbZW4ILvsWnmda/view",
+    "automatable": false,
+    "size_bytes": 47513137,
+    "sha256": "ed133c261c5d367fc6adf53813a5c93b62a59de5bef546cf5899a5c157eba7a0"
   }
 }

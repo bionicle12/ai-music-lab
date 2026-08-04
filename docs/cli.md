@@ -27,6 +27,12 @@ FST looks for beats and downbeats first. Full mixes, drums and rhythmic stems su
 vocals, ambience or anything without a detectable pulse the adapter exits with
 `FST preprocessing found no beat-aligned segments` rather than recording a false `Real / NaN`.
 
+`--backbone-batch` sets how many of the 48 segments go through the backbone at once. The default
+of 8 peaks at 4.8 GB of VRAM; `0` sends all 48 in one pass as upstream does, at 16 GB and in the
+same wall-clock time. The value used is recorded in the run's telemetry — it can move the raw
+logit by one float16 ulp, so it is part of what produced the score. See
+[what it costs to run](../README.md#what-it-costs-to-run).
+
 ## Smoke tests
 
 ```powershell

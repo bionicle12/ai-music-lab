@@ -148,6 +148,8 @@ DISCLOSURES: Final[dict[str, Disclosure]] = {
     "detector/caveat": Disclosure(
         prefix="detector.caveat", layout="badge", sections=(), runtime=True
     ),
+    "fst/batch": Disclosure(prefix="detector.fst.batch", sections=("note",)),
+    "provision/manual": Disclosure(prefix="disc.provision.manual", tone="warn"),
 }
 
 #: Rendered as a stack of rows under the MIDI transcription controls.

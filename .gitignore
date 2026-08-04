@@ -18,3 +18,7 @@ output/
 assets/*.mp4
 assets/*.mov
 assets/*.mkv
+
+# Tracks kept around for measuring against. Somebody's music, not project
+# assets — and git would carry every byte of them forever.
+examples/

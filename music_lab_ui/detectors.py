@@ -5,8 +5,9 @@ import math
 import subprocess
 import tempfile
 import time
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 
@@ -15,6 +16,12 @@ from .contracts import DetectorResult
 from .i18n import Translator, get_translator
 
 ProgressCallback = Callable[[str, float], None]
+
+#: Segments per FST backbone pass. Upstream sends all 48 at once and peaks at
+#: 16 GB of VRAM, which is more than most cards have; in eights the same run
+#: peaks at 4.8 GB in the same time. Kept here rather than left to the adapter
+#: default so the value appears in the command that produced the score.
+FST_BACKBONE_BATCH = 8
 
 
 def _error_result(
@@ -201,6 +208,7 @@ def run_fst(
     audio: Path,
     paths: LabPaths,
     t: Translator | None = None,
+    backbone_batch: int = FST_BACKBONE_BATCH,
 ) -> DetectorResult:
     translate = t or get_translator()
     started = time.perf_counter()
@@ -239,6 +247,8 @@ def run_fst(
                 str(output),
                 "--npz-output",
                 str(arrays_output),
+                "--backbone-batch",
+                str(backbone_batch),
             ],
             cwd=paths.root,
             capture_output=True,
@@ -297,9 +307,27 @@ def run_selected(
     paths: LabPaths,
     progress: ProgressCallback | None = None,
     t: Translator | None = None,
+    options: Mapping[str, Any] | None = None,
 ) -> list[DetectorResult]:
+    """``options`` carries the user's per-detector settings.
+
+    A plain mapping rather than ``LabSettings``: this module reads settings, it
+    does not own them, and taking the whole object would let a detector reach
+    for the Hugging Face token that sits in the same dataclass.
+    """
     translate = t or get_translator()
-    callbacks = {"lofcz": run_lofcz, "FST": run_fst}
+    chosen = dict(options or {})
+    callbacks: dict[str, Callable[..., DetectorResult]] = {
+        "lofcz": run_lofcz,
+        "FST": lambda audio, paths, translate: run_fst(
+            audio,
+            paths,
+            translate,
+            backbone_batch=int(
+                chosen.get("fst_backbone_batch", FST_BACKBONE_BATCH)
+            ),
+        ),
+    }
     results: list[DetectorResult] = []
     total = max(len(selected), 1)
     for index, detector in enumerate(selected):

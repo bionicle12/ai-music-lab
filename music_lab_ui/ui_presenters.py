@@ -10,7 +10,7 @@ from .artifact_metrics import ArtifactMetrics
 from .contracts import AnalysisRun, AudioFeatures, DetectorResult, LayerResult
 from .disclosure import disclosure_html
 from .i18n import Translator, get_translator
-from .readiness import ReadinessReport, can_transcribe
+from .readiness import DETECTOR_REQUIREMENTS, ReadinessReport, can_transcribe
 from .repositories import REPOSITORIES_BY_KEY, PullOutcome, RepoStatus
 from .telemetry import DetectorTelemetry
 from .ui_service import AnalysisOutcome, RunComparisonOutcome
@@ -378,6 +378,9 @@ def technical_payload(outcome: AnalysisOutcome) -> dict[str, Any]:
         "run_id": outcome.run.run_id,
         "created_at": outcome.run.created_at,
         "input_sha256": outcome.features.metadata.sha256,
+        # The settings the run was measured with — never the token, which is
+        # not in `detector_options` for exactly this reason.
+        "settings": dict(outcome.settings),
         "detectors": [asdict(result) for result in outcome.run.results],
     }
 
@@ -535,6 +538,82 @@ def readiness_html(
         '<div class="readiness">'
         f'<h4>{html.escape(translate("readiness.heading"))}</h4>'
         f'<ul class="readiness-list">{"".join(rows)}</ul>{tail}</div>'
+    )
+
+
+_DETECTOR_REPO_KEYS: dict[str, str] = {
+    item.detector: item.repo_key for item in DETECTOR_REQUIREMENTS
+}
+
+
+def detector_readiness_html(
+    detector: str,
+    report: ReadinessReport,
+    t: Translator | None = None,
+) -> str:
+    """The three-row checklist, for a detector's own settings dialog.
+
+    Deliberately not :func:`readiness_html`: that one's row labels name
+    muscriptor ("muscriptor clone") and its summary runs through
+    ``can_transcribe``, which asks about a licence and a token no detector has.
+    Sharing it would have meant a parameter deciding which half applies.
+    """
+    translate = t or get_translator()
+    rows = []
+    for item in report.items:
+        glyph, css = _READINESS_MARKS[item.ok]
+        rows.append(
+            f'<li class="{css}"><span class="ready-mark">{glyph}</span>'
+            f'<span class="ready-name">'
+            f'{html.escape(translate(f"detector.ready.item.{item.key}"))}</span>'
+            f'<span class="ready-detail">{html.escape(item.detail)}</span></li>'
+        )
+    problem = report.first_problem()
+    tail = (
+        translate("detector.ready.ok")
+        if problem is None
+        else translate(
+            "detector.ready.blocked",
+            detail=translate(f"detector.ready.fix.{problem.key}"),
+        )
+    )
+    return (
+        f'<div class="readiness" data-detector-readiness="{html.escape(detector)}">'
+        f'<ul class="readiness-list">{"".join(rows)}</ul>'
+        f'<p class="readiness-next">{html.escape(tail)}</p></div>'
+    )
+
+
+def detector_upstream_html(
+    detector: str,
+    status: RepoStatus | None,
+    t: Translator | None = None,
+) -> str:
+    """Which clone, at which commit, and whether that is the verified one.
+
+    A score is only comparable across runs if the code behind it did not move,
+    so the commit belongs beside the settings that produced the score.
+    """
+    translate = t or get_translator()
+    repo = REPOSITORIES_BY_KEY[_DETECTOR_REPO_KEYS[detector]]
+    head = (
+        status.head[:7]
+        if status and status.head
+        else translate("detector.upstream.missing")
+    )
+    state = (
+        translate("detector.upstream.match")
+        if status and status.matches_pin
+        else translate("detector.upstream.drift", pinned=repo.pinned_commit[:7])
+    )
+    return (
+        '<dl class="detector-upstream">'
+        f'<div><dt>{html.escape(translate("detector.upstream.repository"))}</dt>'
+        f'<dd><a href="{html.escape(repo.url.removesuffix(".git"))}" target="_blank" '
+        f'rel="noopener">{html.escape(repo.folder)}</a></dd></div>'
+        f'<div><dt>{html.escape(translate("detector.upstream.head"))}</dt>'
+        f'<dd><code>{html.escape(head)}</code> · {html.escape(state)}</dd></div>'
+        "</dl>"
     )
 
 

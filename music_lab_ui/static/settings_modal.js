@@ -9,12 +9,17 @@
 (function () {
   "use strict";
 
+  // Every detector has a dialog of its own, so this has to find the open one
+  // rather than the first one: querySelector would keep returning the hidden
+  // muscriptor panel and Escape would do nothing for the others.
   function openModal() {
-    var modal = document.querySelector(".settings-modal");
-    // Not offsetParent: that is always null on a fixed-position element, which
-    // this dialog is, so the usual visibility check would never see it open.
-    if (!modal || !modal.getClientRects().length) return null;
-    return modal;
+    var modals = document.querySelectorAll(".settings-modal");
+    for (var i = 0; i < modals.length; i += 1) {
+      // Not offsetParent: that is always null on a fixed-position element,
+      // which these are, so the usual visibility check never sees them open.
+      if (modals[i].getClientRects().length) return modals[i];
+    }
+    return null;
   }
 
   function close(modal) {

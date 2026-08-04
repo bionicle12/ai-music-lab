@@ -4,9 +4,11 @@ import json
 import shutil
 import sqlite3
 import uuid
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -71,6 +73,7 @@ class HistoryStore:
         features: AudioFeatures,
         results: list[DetectorResult],
         note: str,
+        settings: Mapping[str, Any] | None = None,
     ) -> AnalysisRun:
         created_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
         run_id = (
@@ -102,6 +105,10 @@ class HistoryStore:
             "run_id": run_id,
             "created_at": created_at,
             "note": note.strip(),
+            # In the run file rather than in a database column: it is never
+            # queried, and a new setting would otherwise mean a schema
+            # migration over somebody's saved measurements.
+            "settings": dict(settings or {}),
             "results": [asdict(result) for result in results],
         }
         result_path.write_text(

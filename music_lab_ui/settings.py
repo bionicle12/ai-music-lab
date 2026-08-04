@@ -16,18 +16,24 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
-#: Bumped when a stored file can no longer be read as-is. An unknown version
-#: falls back to defaults rather than guessing at a migration.
-SETTINGS_VERSION: Final[int] = 1
+#: Bumped when the stored shape changes. A file one or more versions behind is
+#: migrated forward; only a file from the *future* falls back to defaults,
+#: because guessing at a shape this build has never seen would lose data.
+SETTINGS_VERSION: Final[int] = 2
 
 MODEL_SIZES: Final[tuple[str, ...]] = ("small", "medium", "large")
 DEFAULT_MODEL: Final[str] = "large"
 DEVICES: Final[tuple[str, ...]] = ("cuda", "cpu")
+
+#: Segments per FST backbone pass, with the peak GPU memory each one cost on a
+#: 3:26 track. ``0`` is upstream's own single pass over all 48.
+FST_BACKBONE_CHOICES: Final[tuple[int, ...]] = (4, 8, 0)
+DEFAULT_FST_BACKBONE_BATCH: Final[int] = 8
 
 
 @dataclass(frozen=True)
@@ -43,6 +49,10 @@ class LabSettings:
     muscriptor_weights: dict[str, str] = field(default_factory=dict)
     weights_license_accepted: bool = False
     midi_device: str = "cuda"
+    #: How many of FST's 48 segments go through the backbone at once. Not a
+    #: performance dial: it is the difference between 4.8 GB of VRAM and 16, and
+    #: it can move the raw logit by one float16 ulp, so it is recorded per run.
+    fst_backbone_batch: int = DEFAULT_FST_BACKBONE_BATCH
     version: int = SETTINGS_VERSION
 
     def normalized(self) -> "LabSettings":
@@ -58,14 +68,59 @@ class LabSettings:
             for size, path in self.muscriptor_weights.items()
             if size in MODEL_SIZES
         }
+        batch = (
+            self.fst_backbone_batch
+            if self.fst_backbone_batch in FST_BACKBONE_CHOICES
+            else DEFAULT_FST_BACKBONE_BATCH
+        )
         return replace(
             self,
             hf_token=self.hf_token.strip(),
             muscriptor_model=model,
             midi_device=device,
             muscriptor_weights=weights,
+            fst_backbone_batch=batch,
             version=SETTINGS_VERSION,
         )
+
+
+#: One entry per version step, keyed by the version it upgrades *from*. Each
+#: takes a stored payload and returns the next version's shape.
+#:
+#: v1 -> v2 only added ``fst_backbone_batch``, and an absent field already
+#: becomes its default, so the step has nothing to do. It exists anyway: the
+#: chain is what makes the next bump safe, and an empty step is proof the
+#: version was considered rather than forgotten.
+_MIGRATIONS: Final[dict[int, Callable[[dict[str, Any]], dict[str, Any]]]] = {
+    1: lambda payload: payload,
+}
+
+
+def migrate(payload: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Bring a stored payload to the current version, or refuse to guess.
+
+    Before this existed, a version bump sent :meth:`SettingsStore.load` straight
+    to defaults — which reads as "your Hugging Face token vanished after an
+    update", discovered a week later when a download fails. Old files are now
+    carried forward field by field.
+
+    ``None`` means the payload cannot be read: no version, or a version from a
+    build newer than this one, whose shape is unknowable from here.
+    """
+    version = payload.get("version")
+    if not isinstance(version, int) or isinstance(version, bool):
+        return None
+    if version < 1 or version > SETTINGS_VERSION:
+        return None
+    current = dict(payload)
+    while version < SETTINGS_VERSION:
+        step = _MIGRATIONS.get(version)
+        if step is None:
+            return None
+        current = step(current)
+        version += 1
+    current["version"] = SETTINGS_VERSION
+    return current
 
 
 def token_fingerprint(token: str) -> str:
@@ -132,14 +187,15 @@ class SettingsStore:
         if not isinstance(payload, dict):
             self._load_error = "settings file is not a JSON object"
             return LabSettings()
-        if payload.get("version") != SETTINGS_VERSION:
+        migrated = migrate(payload)
+        if migrated is None:
             self._load_error = (
-                f"settings version {payload.get('version')!r} is not "
-                f"{SETTINGS_VERSION}; defaults are in use"
+                f"settings version {payload.get('version')!r} cannot be read by "
+                f"this build (it writes {SETTINGS_VERSION}); defaults are in use"
             )
             return LabSettings()
         known = {field_name for field_name in LabSettings().__dataclass_fields__}
-        accepted = {key: value for key, value in payload.items() if key in known}
+        accepted = {key: value for key, value in migrated.items() if key in known}
         try:
             return LabSettings(**accepted).normalized()
         except TypeError as error:

@@ -15,6 +15,27 @@ Docker is not required. A global FFmpeg is not required either — every environ
 FLAC and MP3 through the `soundfile` backend. Windows Developer Mode is optional; without it
 the Hugging Face cache works without symlinks and takes slightly more disk space.
 
+> **From the interface instead.** Once the wrapper itself is cloned and the `ai-music-ui`
+> environment exists (steps 1 and 2 below, for that one environment only), the rest can be done
+> from inside the app: each detector has a gear beside its checkbox, and its dialog lists what is
+> missing and offers to fetch it. Sections 1–3 are what that button does, written out — read them
+> if you would rather do it yourself, or if a step fails and you want to know what it was trying.
+
+### What the interface will and will not do for you
+
+| Step | Automated? | |
+| --- | --- | --- |
+| `git clone` of the three upstreams | yes | Refused if the target folder already has files in it |
+| Conda environment + pinned requirements | yes | Conda must already be installed; it will not install it |
+| `models/lofcz/ai_music_detector.onnx` | yes | Verified against its published SHA-256 |
+| `models/fst/Stage-1.ckpt`, `Stage-2.ckpt` | **no** | Google Drive serves files this size behind a confirmation page, so there is no stable direct link. The dialog prints both URLs and the exact destination paths; drop the files there and press **Check again** |
+| muscriptor transcription weights | yes | Gated — needs a Hugging Face token, from the MIDI settings dialog |
+
+If an environment refuses to build — a proxy, a resolver conflict, a locked file — the dialog
+stops and hands you a ready-made prompt for a coding agent, with the commands, the paths and the
+tail of the log already in it. Finish that one step however works, press **Check again**, and the
+remaining steps carry on from there.
+
 ## 1. Clone the wrapper and the upstreams
 
 The upstream projects live *next to* this repository, not inside it. The adapters expect that
