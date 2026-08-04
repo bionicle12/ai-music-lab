@@ -8,7 +8,10 @@ from collections.abc import Sequence
 
 from .artifact_metrics import ArtifactMetrics
 from .contracts import AnalysisRun, AudioFeatures, DetectorResult, LayerResult
+from .disclosure import disclosure_html
 from .i18n import Translator, get_translator
+from .readiness import ReadinessReport, can_transcribe
+from .repositories import REPOSITORIES_BY_KEY, PullOutcome, RepoStatus
 from .telemetry import DetectorTelemetry
 from .ui_service import AnalysisOutcome, RunComparisonOutcome
 
@@ -55,6 +58,17 @@ def detector_cards(
         )
         status, status_class = _score_status(result, translate)
         detail = result.error or result.label
+        # The caveat used to be the widest of three columns, repeated per card,
+        # sitting between the reader and the number they came for. It is now a
+        # badge in the head — amber when the result is one you should not take
+        # at face value, cyan otherwise.
+        caveat = disclosure_html(
+            "detector/caveat",
+            translate,
+            body=f"<p>{html.escape(_detector_caveat(result, translate))}</p>",
+        )
+        if status_class in ("result-high", "result-error", "result-warning"):
+            caveat = caveat.replace("tone-info", "tone-warn")
         cards.append(
             f"""
             <article class="detector-card {status_class}">
@@ -63,7 +77,7 @@ def detector_cards(
                   <span class="detector-name">{html.escape(result.detector)}</span>
                   <span class="detector-kind">{translate("detector.kind")}</span>
                 </div>
-                <span class="detector-device">{html.escape(result.device or translate("detector.unknown_device"))}</span>
+                {caveat}
               </div>
               <div class="detector-body">
                 <div class="detector-score-block">
@@ -75,16 +89,81 @@ def detector_cards(
                   <strong class="detector-status">{html.escape(status)}</strong>
                   <small>{html.escape(detail)}</small>
                 </div>
-                <div class="detector-caveat">
-                  <span class="metric-label">{translate("detector.caveat")}</span>
-                  <p>{html.escape(_detector_caveat(result, translate))}</p>
-                </div>
               </div>
-              <div class="detector-runtime">{translate("detector.seconds", value=f"{result.runtime_seconds:.1f}")}</div>
+              <div class="detector-foot">
+                <span class="detector-device">{html.escape(result.device or translate("detector.unknown_device"))}</span>
+                <span class="detector-runtime">{translate("detector.seconds", value=f"{result.runtime_seconds:.1f}")}</span>
+              </div>
             </article>
             """
         )
     return '<div class="detector-grid">' + "".join(cards) + "</div>"
+
+
+def file_card_html(
+    features: AudioFeatures | None,
+    t: Translator | None = None,
+) -> str:
+    """The loaded file as a card, not an eleven-row table in a 330px column.
+
+    Identity as chips, the three levels you actually glance at as a small
+    definition list, and the stereo figures behind a badge — they are ``None``
+    for mono, and a column of dashes is noise. Nothing is lost: the full table
+    is on the Technical data tab and every value stays in the run JSON.
+    """
+    translate = t or get_translator()
+    if features is None:
+        return f'<div class="file-card is-empty">{translate("meta.empty")}</div>'
+
+    metadata = features.metadata
+    metrics = features.metrics
+    minutes, seconds = divmod(int(round(metadata.duration_seconds)), 60)
+    chips = [
+        metadata.suffix.upper().lstrip("."),
+        f"{metadata.sample_rate / 1000:g} {translate('unit.kilohertz')}",
+        translate("unit.mono")
+        if metadata.channels == 1
+        else translate("unit.stereo"),
+        f"{minutes}:{seconds:02d}",
+        f"{metadata.size_bytes / (1024 * 1024):.1f} {translate('unit.megabytes')}",
+    ]
+    levels = [
+        (translate("meta.peak"), f"{metrics.peak_dbfs:.1f} dBFS"),
+        (translate("meta.rms"), f"{metrics.rms_dbfs:.1f} dBFS"),
+        (translate("meta.crest"), f"{metrics.crest_factor_db:.1f} dB"),
+    ]
+
+    stereo = []
+    if metrics.stereo_correlation is not None:
+        stereo.append(
+            f"{translate('meta.stereo_correlation')}: "
+            f"{metrics.stereo_correlation:.3f}"
+        )
+    if metrics.mid_side_ratio_db is not None:
+        stereo.append(
+            f"{translate('meta.mid_side')}: {metrics.mid_side_ratio_db:.2f} dB"
+        )
+    stereo_badge = (
+        disclosure_html(
+            "file/stereo",
+            translate,
+            body="".join(f"<p>{html.escape(item)}</p>" for item in stereo),
+        )
+        if stereo
+        else ""
+    )
+
+    return f"""
+    <div class="file-card">
+      <p class="file-card-name" title="{html.escape(metadata.filename)}">{html.escape(metadata.filename)}</p>
+      <ul class="file-chips">{"".join(f"<li>{html.escape(chip)}</li>" for chip in chips)}</ul>
+      <dl class="file-levels">{"".join(
+          f"<div><dt>{html.escape(name)}</dt><dd>{html.escape(value)}</dd></div>"
+          for name, value in levels
+      )}</dl>
+      {stereo_badge}
+    </div>
+    """
 
 
 def metadata_rows(
@@ -393,3 +472,155 @@ def artifact_rows(
             ]
         )
     return rows
+
+
+#: ok -> glyph. `None` is "not checked yet", which deserves its own mark:
+#: rendering unknown as a red cross would accuse a working setup of being broken.
+_READINESS_MARKS: dict[bool | None, tuple[str, str]] = {
+    True: ("✓", "ready-ok"),
+    False: ("✕", "ready-bad"),
+    None: ("•", "ready-unknown"),
+}
+
+
+def readiness_summary(report: ReadinessReport, t: Translator | None = None) -> str:
+    """One line: ready, blocked, or ready-but-unverified.
+
+    The middle case matters. `can_transcribe` deliberately ignores the package
+    probe — it costs a subprocess and a real run fails loudly enough — so a
+    setup with everything but that check done is usable, and calling it "not set
+    up" would send someone hunting for a problem they do not have.
+    """
+    translate = t or get_translator()
+    problem = report.first_problem()
+    if problem is None:
+        return translate("readiness.ready")
+    if can_transcribe(report):
+        return translate("readiness.unverified")
+    return translate(
+        "readiness.blocked", detail=translate(f"readiness.fix.{problem.key}")
+    )
+
+
+def readiness_html(
+    report: ReadinessReport,
+    t: Translator | None = None,
+    *,
+    footer: bool = True,
+) -> str:
+    """One row per requirement, plus what to do about the first failing one.
+
+    ``footer=False`` when the caller already shows that line — nesting the
+    checklist under its own summary otherwise says the same sentence twice.
+    """
+    translate = t or get_translator()
+    rows = []
+    for item in report.items:
+        glyph, css = _READINESS_MARKS[item.ok]
+        detail = item.detail if item.ok is not None else translate(
+            "readiness.not_checked"
+        )
+        rows.append(
+            f'<li class="{css}"><span class="ready-mark">{glyph}</span>'
+            f'<span class="ready-name">{html.escape(translate(f"readiness.item.{item.key}"))}</span>'
+            f'<span class="ready-detail">{html.escape(detail)}</span></li>'
+        )
+    tail = (
+        f'<p class="readiness-next">'
+        f"{html.escape(readiness_summary(report, translate))}</p>"
+        if footer
+        else ""
+    )
+    return (
+        '<div class="readiness">'
+        f'<h4>{html.escape(translate("readiness.heading"))}</h4>'
+        f'<ul class="readiness-list">{"".join(rows)}</ul>{tail}</div>'
+    )
+
+
+def readiness_disclosure(
+    report: ReadinessReport,
+    t: Translator | None = None,
+) -> str:
+    """The same checklist, collapsed to one line for the transcription tab.
+
+    Opens itself when the setup is incomplete — so someone who is blocked sees
+    more than they do today, and someone who is ready sees three words instead
+    of six rows.
+    """
+    translate = t or get_translator()
+    body = (
+        f'<p class="readiness-line">'
+        f"{html.escape(readiness_summary(report, translate))}</p>"
+        + readiness_html(report, translate, footer=False)
+    )
+    # Opens itself only when something actually blocks a run — an unrun package
+    # probe is not a reason to greet everyone with an open checklist.
+    return disclosure_html(
+        "midi/setup", translate, body=body, open=not can_transcribe(report)
+    )
+
+
+def _repo_state(status: RepoStatus, t: Translator) -> str:
+    if not status.present:
+        return t("repo.state.missing")
+    if not status.is_git:
+        return t("repo.state.not_git")
+    if status.error:
+        return status.error
+    if status.dirty:
+        return t("repo.state.dirty")
+    if status.behind:
+        return t("repo.state.behind", count=status.behind)
+    if status.behind == 0:
+        return t("repo.state.current")
+    return t("repo.state.clean")
+
+
+def repo_status_rows(
+    statuses: Sequence[RepoStatus],
+    t: Translator | None = None,
+) -> list[list[Any]]:
+    """The upstream clones as a table: where they are and whether they moved."""
+    translate = t or get_translator()
+    rows: list[list[Any]] = []
+    for status in statuses:
+        repo = REPOSITORIES_BY_KEY[status.key]
+        pinned = translate("repo.pin.match")
+        if status.head and not status.matches_pin:
+            pinned = translate("repo.pin.drift", commit=repo.pinned_commit[:7])
+        elif not status.head:
+            pinned = "—"
+        rows.append(
+            [
+                repo.folder,
+                (status.head or "—")[:7],
+                status.branch or translate("repo.state.detached"),
+                _repo_state(status, translate),
+                pinned,
+            ]
+        )
+    return rows
+
+
+def pull_message(outcome: PullOutcome, t: Translator | None = None) -> str:
+    """What a pull actually did, or precisely why it declined to do anything."""
+    translate = t or get_translator()
+    if not outcome.performed:
+        reason = translate(f"repo.pull.{outcome.refused_reason}")
+        return f"{reason}\n\n```\n{outcome.log}\n```" if outcome.log else reason
+    if outcome.previous_head == outcome.new_head:
+        return translate("repo.pull.unchanged", commit=(outcome.new_head or "")[:7])
+    lines = [
+        translate(
+            "repo.pull.done",
+            previous=(outcome.previous_head or "")[:7],
+            current=(outcome.new_head or "")[:7],
+            subject=outcome.subject or "",
+        ),
+        translate("repo.pull.comparability"),
+        translate("repo.pull.pin_line", commit=outcome.new_head or ""),
+    ]
+    if outcome.dependencies_changed:
+        lines.insert(1, translate("repo.pull.dependencies"))
+    return "\n\n".join(lines)

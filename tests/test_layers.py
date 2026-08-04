@@ -66,6 +66,36 @@ def test_sweep_ranks_layers_by_score_and_creates_no_runs(tmp_path: Path) -> None
     assert results[0].mean_residue_db == pytest.approx(1.5)
     # A sweep is a diagnostic, not a version: history must stay untouched.
     assert service.history.list_runs() == []
+    # …but the path survives, or there would be nothing to send to MIDI.
+    assert results[0].path == str((tmp_path / "drums.wav").resolve())
+
+
+def test_layer_paths_stay_aligned_with_the_table_rows(tmp_path: Path) -> None:
+    """A row index only means something against the list built from the same
+    sorted results — sweep_layers re-orders by score."""
+    service = layer_service(tmp_path)
+    files = []
+    for name in ("guitar.wav", "drums.wav"):
+        path = tmp_path / name
+        write_tone(path)
+        files.append(str(path))
+
+    results = service.sweep_layers(files)
+    rows = layer_rows(results)
+    paths = [item.path for item in results]
+
+    assert [row[0] for row in rows] == ["drums.wav", "guitar.wav"]
+    assert [Path(path).name for path in paths] == ["drums.wav", "guitar.wav"]
+
+
+def test_two_stems_with_the_same_name_stay_distinguishable() -> None:
+    """The reason the handoff carries a list and not a name-keyed map."""
+    results = [
+        LayerResult("bass.wav", "ok", 0.9, 1.0, 8.0, None, "C:/take1/bass.wav"),
+        LayerResult("bass.wav", "ok", 0.2, 1.0, 8.0, None, "C:/take2/bass.wav"),
+    ]
+
+    assert len({item.path for item in results}) == 2
 
 
 def test_sweep_rejects_unsupported_files_without_failing_the_batch(tmp_path: Path) -> None:

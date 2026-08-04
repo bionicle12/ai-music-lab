@@ -15,15 +15,16 @@ Docker is not required. A global FFmpeg is not required either — every environ
 FLAC and MP3 through the `soundfile` backend. Windows Developer Mode is optional; without it
 the Hugging Face cache works without symlinks and takes slightly more disk space.
 
-## 1. Clone the wrapper and both detectors
+## 1. Clone the wrapper and the upstreams
 
-The two detectors live *next to* this repository, not inside it. The adapters expect that
+The upstream projects live *next to* this repository, not inside it. The adapters expect that
 layout by default.
 
 ```powershell
 git clone https://github.com/bionicle12/ai-music-lab.git
 git clone https://github.com/lofcz/ai-music-detector.git
 git clone https://github.com/Mippia/FST-AI-Music-Detection.git
+git clone https://github.com/muscriptor/muscriptor.git
 ```
 
 Your folder tree should end up like this:
@@ -32,13 +33,16 @@ Your folder tree should end up like this:
 <parent>/
 ├── ai-music-lab/            # this repository
 ├── ai-music-detector/       # lofcz upstream
-└── FST-AI-Music-Detection/  # FST upstream
+├── FST-AI-Music-Detection/  # FST upstream
+└── muscriptor/              # audio → MIDI, optional
 ```
+
+`muscriptor` is only needed for MIDI transcription — skip it if you only want detection.
 
 ## 2. Create the environments
 
-Three Conda environments, because the detectors pin incompatible dependency sets. The UI
-environment is the only one you need for the interface itself.
+Conda environments, because the upstreams pin incompatible dependency sets. The UI environment
+is the only one you need for the interface itself.
 
 ```powershell
 cd ai-music-lab
@@ -51,6 +55,16 @@ conda run -n ai-music-lofcz python -m pip install -r environments\ai-music-lofcz
 
 conda create -n ai-music-fst python=3.11 -y
 conda run -n ai-music-fst python -m pip install -r environments\ai-music-fst.txt
+```
+
+For MIDI transcription, a fourth environment. muscriptor is installed **editable from the
+clone**, so a later `git pull` updates the code that actually runs — see
+[Audio → MIDI](midi.md). It is another full torch install, roughly 2.5 GB on disk.
+
+```powershell
+conda create -n ai-music-muscriptor python=3.11 -y
+conda run -n ai-music-muscriptor python -m pip install torch --index-url https://download.pytorch.org/whl/cu128
+conda run -n ai-music-muscriptor python -m pip install -e ..\muscriptor
 ```
 
 The `environments/*.txt` files are frozen snapshots of what is actually installed, not
@@ -148,10 +162,16 @@ commands and the paths all assume PowerShell and Conda, and no other platform is
 | --- | --- |
 | lofcz upstream | `6ba389e94a179ac90f3eb134b741ef37baa30434` |
 | FST upstream | `b564f8be8b3db6b7810c2aab61f0b4f86f889579` |
+| muscriptor upstream | `e2bd0fc5994f9acba7c1387ca5df67eb8d95df44` (`0.2.2`) |
 | Python | `3.11` |
-| PyTorch / TorchAudio | `2.8.0+cu128` |
+| PyTorch / TorchAudio | `2.8.0+cu128` in the detector environments |
 | Gradio | `6.20.0` |
 | GPU | NVIDIA GeForce RTX 4090 |
 
 TorchAudio is held at 2.8 deliberately: upstream uses the old `torchaudio.load` path, and from
 2.9 onwards that path requires TorchCodec plus a separate full-shared FFmpeg build on Windows.
+The muscriptor environment is separate and unaffected, so it takes a current torch.
+
+The two detector commits are *pins*: their scores are only comparable across runs if the code
+that produced them did not change. muscriptor is not pinned in the same sense — its commit is
+the version the wrapper was verified against, and Settings can fast-forward it.

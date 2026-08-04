@@ -110,3 +110,14 @@ def test_only_time_domain_figures_opt_into_playback_sync() -> None:
     for figure in frequency_domain:
         # A playhead on a frequency axis would point at a meaningless position.
         assert figure.layout.meta["time_axis"] is False
+
+
+def test_an_untitled_chart_keeps_the_top_margin_it_asked_for() -> None:
+    """Gradio 6.20 forces `margin.t` to at least 100 on a labelled plot that
+    carries a title, and a title of "" still counts as one. The whole-track
+    strip is 118px tall, so that left two pixels to draw the track in — which
+    looks exactly like a chart that never got any data."""
+    figure = waveform_figure(feature_fixture())
+
+    assert figure.layout.title.text is None
+    assert figure.layout.margin.t == 20

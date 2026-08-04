@@ -15,15 +15,16 @@ Docker не нужен. Глобальный FFmpeg тоже не нужен —
 backend `soundfile`. Windows Developer Mode необязателен: без него кэш Hugging Face работает
 без symlink и занимает чуть больше места.
 
-## 1. Клонировать обёртку и оба детектора
+## 1. Клонировать обёртку и апстримы
 
-Детекторы лежат **рядом** с этим репозиторием, а не внутри него. Адаптеры по умолчанию
+Апстримы лежат **рядом** с этим репозиторием, а не внутри него. Адаптеры по умолчанию
 рассчитывают именно на такую раскладку.
 
 ```powershell
 git clone https://github.com/bionicle12/ai-music-lab.git
 git clone https://github.com/lofcz/ai-music-detector.git
 git clone https://github.com/Mippia/FST-AI-Music-Detection.git
+git clone https://github.com/muscriptor/muscriptor.git
 ```
 
 Должно получиться так:
@@ -32,12 +33,15 @@ git clone https://github.com/Mippia/FST-AI-Music-Detection.git
 <родительская папка>/
 ├── ai-music-lab/            # этот репозиторий
 ├── ai-music-detector/       # upstream lofcz
-└── FST-AI-Music-Detection/  # upstream FST
+├── FST-AI-Music-Detection/  # upstream FST
+└── muscriptor/              # аудио → MIDI, необязательно
 ```
+
+`muscriptor` нужен только для перевода в MIDI — пропустите его, если хватает детекции.
 
 ## 2. Создать среды
 
-Три Conda-среды, потому что детекторы фиксируют несовместимые наборы зависимостей. Для самого
+Conda-среды, потому что апстримы фиксируют несовместимые наборы зависимостей. Для самого
 интерфейса нужна только среда UI.
 
 ```powershell
@@ -51,6 +55,16 @@ conda run -n ai-music-lofcz python -m pip install -r environments\ai-music-lofcz
 
 conda create -n ai-music-fst python=3.11 -y
 conda run -n ai-music-fst python -m pip install -r environments\ai-music-fst.txt
+```
+
+Для перевода в MIDI — четвёртая среда. muscriptor ставится **editable из клона**, чтобы
+последующий `git pull` обновлял тот код, который реально исполняется, — см.
+[Аудио → MIDI](midi.md). Это ещё одна полная установка torch, примерно 2.5 ГБ на диске.
+
+```powershell
+conda create -n ai-music-muscriptor python=3.11 -y
+conda run -n ai-music-muscriptor python -m pip install torch --index-url https://download.pytorch.org/whl/cu128
+conda run -n ai-music-muscriptor python -m pip install -e ..\muscriptor
 ```
 
 Файлы `environments/*.txt` — это снимки реально установленного, а не написанный вручную минимум.
@@ -149,10 +163,16 @@ conda run -n ai-music-ui python -m pip install -r environments\ai-music-ui.txt
 | --- | --- |
 | upstream lofcz | `6ba389e94a179ac90f3eb134b741ef37baa30434` |
 | upstream FST | `b564f8be8b3db6b7810c2aab61f0b4f86f889579` |
+| upstream muscriptor | `e2bd0fc5994f9acba7c1387ca5df67eb8d95df44` (`0.2.2`) |
 | Python | `3.11` |
-| PyTorch / TorchAudio | `2.8.0+cu128` |
+| PyTorch / TorchAudio | `2.8.0+cu128` в средах детекторов |
 | Gradio | `6.20.0` |
 | GPU | NVIDIA GeForce RTX 4090 |
 
 TorchAudio намеренно зафиксирован на 2.8: upstream использует старый путь `torchaudio.load`, а начиная
-с 2.9 он требует TorchCodec и отдельную full-shared сборку FFmpeg под Windows.
+с 2.9 он требует TorchCodec и отдельную full-shared сборку FFmpeg под Windows. Среда muscriptor
+отдельная и этим не затронута, поэтому там стоит актуальный torch.
+
+Два коммита детекторов — это именно *пины*: их score сравнимы между запусками, только пока не
+менялся код, который их произвёл. muscriptor в этом смысле не пин — его коммит просто та версия,
+против которой обёртка проверялась, и настройки умеют перематывать его вперёд.

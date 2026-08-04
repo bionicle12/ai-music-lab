@@ -63,6 +63,10 @@ class LayerResult:
     mean_residue_db: float | None
     duration_seconds: float | None
     error: str | None = None
+    #: Where the stem came from, so a sweep result can be handed to MIDI
+    #: transcription. Appended last on purpose: several call sites build this
+    #: positionally, and inserting a field earlier would silently shift them.
+    path: str | None = None
 
 
 @dataclass(frozen=True)

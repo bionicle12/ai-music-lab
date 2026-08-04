@@ -9,13 +9,25 @@ from .contracts import AudioFeatures
 from .i18n import Translator, get_translator
 
 
+#: Kept in step with styles.css by hand — these are the same palette, and a
+#: chart drawn in a slightly different cyan than the chrome around it reads as
+#: two products.
 PAPER = "#090d14"
 PANEL = "#101722"
 GRID = "#263244"
 TEXT = "#d8e2ef"
 MUTED = "#8190a5"
-CYAN = "#24c8db"
-AMBER = "#f0a443"
+CYAN = "#23b7e5"
+AMBER = "#f4ad28"
+VIOLET = "#9d7bf5"
+
+#: Charts must use the same families as the interface. The previous value asked
+#: for Inter, which is loaded nowhere, so Plotly silently fell back to a system
+#: font while the rest of the page rendered in the theme font.
+FONT_UI = "Manrope, Segoe UI, system-ui, sans-serif"
+#: Every tick label and hover read-out is a measurement, so it gets the tabular
+#: monospace rather than the UI face.
+FONT_MONO = "JetBrains Mono, Consolas, monospace"
 
 SPECTROGRAM_SCALE = [
     [0.0, "#060a11"],
@@ -73,14 +85,27 @@ def _base_layout(
     *,
     time_axis: bool = False,
 ) -> go.Figure:
-    """`time_axis` opts the chart into playback sync (see static/playback_sync.js)."""
+    """`time_axis` opts the chart into playback sync (see static/playback_sync.js).
+
+    An empty title is left off the figure entirely rather than set to "".
+    Gradio 6.20 renders a labelled plot with
+
+        layout.title && show_label && (margin.t = Math.max(100, margin.t))
+
+    and an empty title object still passes that test, so a chart asking for a
+    6px top margin was given 100. The whole-track strip is 118px tall: the
+    trace was being drawn into the two pixels left over, which looked exactly
+    like a chart that had never received any data.
+    """
     figure.update_layout(
         meta={"time_axis": bool(time_axis)},
-        title={"text": title, "x": 0.02, "xanchor": "left"},
         paper_bgcolor=PAPER,
         plot_bgcolor=PANEL,
-        font={"color": TEXT, "family": "Inter, Segoe UI, sans-serif"},
-        hoverlabel={"bgcolor": "#151e2b", "font_color": TEXT},
+        font={"color": TEXT, "family": FONT_UI},
+        hoverlabel={
+            "bgcolor": "#151e2b",
+            "font": {"color": TEXT, "family": FONT_MONO},
+        },
         margin={"l": 70, "r": 26, "t": 58, "b": 55},
         height=height,
         legend={
@@ -91,8 +116,14 @@ def _base_layout(
             "x": 1,
         },
     )
-    figure.update_xaxes(gridcolor=GRID, zerolinecolor=GRID)
-    figure.update_yaxes(gridcolor=GRID, zerolinecolor=GRID)
+    if title:
+        figure.update_layout(title={"text": title, "x": 0.02, "xanchor": "left"})
+    figure.update_xaxes(
+        gridcolor=GRID, zerolinecolor=GRID, tickfont={"family": FONT_MONO}
+    )
+    figure.update_yaxes(
+        gridcolor=GRID, zerolinecolor=GRID, tickfont={"family": FONT_MONO}
+    )
     return figure
 
 
@@ -200,7 +231,7 @@ def spectrogram_3d_figure(
             "xanchor": "left",
         },
         paper_bgcolor=PAPER,
-        font={"color": TEXT, "family": "Inter, Segoe UI, sans-serif"},
+        font={"color": TEXT, "family": FONT_UI},
         height=590,
         margin={"l": 20, "r": 20, "t": 58, "b": 20},
         scene={
@@ -249,9 +280,16 @@ def waveform_figure(
             ),
         )
     )
-    _base_layout(figure, translate("plot.dynamics"), height=290, time_axis=True)
-    figure.update_xaxes(title=translate("plot.axis.time"))
-    figure.update_yaxes(title=translate("plot.axis.rms"), range=[-100, 0])
+    # Sized as a strip beside the player rather than as a chart in its own
+    # right: it is the full-track scrub bar Gradio cannot draw.
+    _base_layout(figure, "", height=118, time_axis=True)
+    # Top margin clears the floating "whole track" label, which Gradio draws
+    # over the top-left of the canvas rather than above it.
+    figure.update_layout(
+        margin={"l": 8, "r": 8, "t": 20, "b": 20}, showlegend=False
+    )
+    figure.update_xaxes(title=None)
+    figure.update_yaxes(title=None, range=[-100, 0], showticklabels=False)
     return figure
 
 
@@ -334,9 +372,15 @@ def difference_figure(
     return figure
 
 
-def empty_figure(message: str) -> go.Figure:
+def empty_figure(message: str, height: int = 280) -> go.Figure:
+    """`height` so a placeholder occupies what the real chart will.
+
+    The track-overview strip is 118px tall; a 280px empty state in its place
+    made the sidebar look like it was mostly waiting for something.
+    """
     figure = go.Figure()
-    _base_layout(figure, "", height=280)
+    _base_layout(figure, "", height=height)
+    figure.update_layout(margin={"l": 8, "r": 8, "t": 6, "b": 6})
     figure.add_annotation(
         text=message,
         x=0.5,
@@ -344,7 +388,7 @@ def empty_figure(message: str) -> go.Figure:
         xref="paper",
         yref="paper",
         showarrow=False,
-        font={"color": MUTED, "size": 15},
+        font={"color": MUTED, "size": 13},
     )
     figure.update_xaxes(visible=False)
     figure.update_yaxes(visible=False)

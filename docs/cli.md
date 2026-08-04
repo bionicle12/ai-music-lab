@@ -41,6 +41,29 @@ conda run -n ai-music-lofcz python ..\ai-music-detector\src\python\inference.py 
 The synthetic file exists to prove the path works end to end. **Its score says nothing about
 real model accuracy** — it is a generated rhythm, not music.
 
+## muscriptor
+
+The MIDI adapter has three modes. Set `HF_HOME` to the repo-local cache first; there is no
+`--token` argument by design, so a gated download needs `HF_TOKEN` in the environment. Full
+context: [Audio → MIDI](midi.md).
+
+```powershell
+$env:HF_HOME = "$PWD\models\muscriptor-cache"
+conda run -n ai-music-muscriptor python adapters\muscriptor_cli.py --mode probe --upstream ..\muscriptor --json-output artifacts\muscriptor-probe.json
+```
+
+```powershell
+conda run -n ai-music-muscriptor python adapters\muscriptor_cli.py --mode download --model small --json-output artifacts\muscriptor-download.json
+```
+
+```powershell
+conda run -n ai-music-muscriptor python adapters\muscriptor_cli.py --mode transcribe --model small --audio artifacts\rhythm-smoke.wav --midi-output output\midi\smoke.mid --json-output artifacts\muscriptor-smoke.json
+```
+
+`small` is the right smoke target: it downloads quickly and still passes through the same gate
+as the larger checkpoints. Progress is written to stdout as one JSON object per line; human
+logging goes to stderr, so stdout stays parseable.
+
 ## Updating upstream
 
 Update each repository separately, and only from a clean status:
@@ -53,6 +76,22 @@ git -C ..\ai-music-detector pull --ff-only
 git -C ..\FST-AI-Music-Detection status --short
 git -C ..\FST-AI-Music-Detection fetch origin
 git -C ..\FST-AI-Music-Detection pull --ff-only
+
+git -C ..\muscriptor status --short
+git -C ..\muscriptor fetch origin
+git -C ..\muscriptor pull --ff-only
+```
+
+muscriptor is also updatable from the settings panel, which runs exactly that last block and
+refuses on a dirty tree, a detached HEAD or a non-repository. The two detectors are not: they
+are held at verified commits so their scores stay comparable, and moving them is a deliberate
+act taken here rather than through a button.
+
+If a muscriptor pull touches `pyproject.toml`, reinstall it — an editable install picks up new
+code but not new dependencies:
+
+```powershell
+conda run -n ai-music-muscriptor python -m pip install -e ..\muscriptor
 ```
 
 Re-run the smoke tests afterwards. Never commit wrapper files or checkpoints into an upstream

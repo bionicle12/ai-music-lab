@@ -291,3 +291,48 @@ def test_load_timeline_is_none_before_the_map_is_built(tmp_path: Path) -> None:
     outcome = service.analyze(str(audio), ["lofcz"], "")
 
     assert service.load_timeline(outcome.run.run_id) is None
+
+
+def test_preview_runs_without_the_detectors_or_a_saved_run(tmp_path: Path) -> None:
+    """Dropping a file draws it; it does not start anything."""
+    service = service_fixture(tmp_path)
+    audio = tmp_path / "version.wav"
+    write_tone(audio)
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("preview must not run detectors")
+
+    service.detector_runner = refuse
+
+    features = service.preview(str(audio))
+
+    assert features is not None
+    assert features.waveform_rms_db.size > 0
+    assert service.history.list_runs() == []
+
+
+def test_preview_skips_the_full_extraction(tmp_path: Path) -> None:
+    """The STFT is what makes a run cost seconds; a preview that paid it would
+    stall the page on every dropped file."""
+    service = service_fixture(tmp_path)
+    audio = tmp_path / "version.wav"
+    write_tone(audio)
+    service.feature_extractor = lambda path: pytest.fail(
+        "preview must not use the analysis extractor"
+    )
+
+    assert service.preview(str(audio)) is not None
+
+
+def test_preview_is_nothing_when_the_player_is_cleared(tmp_path: Path) -> None:
+    assert service_fixture(tmp_path).preview(None) is None
+
+
+def test_preview_refuses_what_the_run_would_refuse(tmp_path: Path) -> None:
+    """Otherwise a file gets drawn on upload and rejected on analyse."""
+    service = service_fixture(tmp_path)
+    unsupported = tmp_path / "track.ogg"
+    unsupported.write_bytes(b"")
+
+    with pytest.raises(ValueError, match=re.escape(t("error.unsupported_format"))):
+        service.preview(str(unsupported))

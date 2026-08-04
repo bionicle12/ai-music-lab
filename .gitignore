@@ -6,6 +6,8 @@ models/lofcz/*
 models/fst/*
 !models/lofcz/.gitkeep
 !models/fst/.gitkeep
+# HF_HOME for muscriptor: gigabytes of gated transcription weights.
+models/muscriptor-cache/
 artifacts/*
 !artifacts/.gitkeep
 data/

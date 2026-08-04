@@ -32,13 +32,17 @@ _EN: dict[str, str] = {
     "app.eyebrow": "LOCAL FORENSIC AUDIO WORKSPACE",
     "app.tagline": "Local analysis of a single track or stem",
     "app.language": "Language",
-    "app.step.upload": "### 1. Load an audio file",
-    "app.step.metadata": "### 2. File information",
-    "app.step.detectors": "### 3. Detectors",
-    "app.audio.label": "Audio file",
+    "app.restart.confirm": (
+        "Restart the server?\n\n"
+        "It picks up changes to the stylesheet, the translations and the "
+        "Python. This page reloads from scratch; anything not yet analysed is "
+        "lost. Saved runs are untouched."
+    ),
+    "app.restart.running": "Restarting — this page will reload itself.",
+    "app.audio.label": "1. Audio file",
     "app.note.label": "Version note",
     "app.note.placeholder": "For example: vocal after de-esser v2",
-    "app.detectors.label": "Detectors",
+    "app.detectors.label": "2. Detectors",
     "app.detectors.lofcz": "lofcz · signal model",
     "app.detectors.fst": "FST · structural model",
     "app.analyze": "▷  Run analysis",
@@ -47,21 +51,250 @@ _EN: dict[str, str] = {
         "> Results are measurements of specific model versions, not proof of "
         "where the audio came from."
     ),
-    "app.empty.detectors": "Individual lofcz and FST results will appear here after an analysis.",
+    "app.empty.detectors": (
+        "lofcz and FST results appear here after an analysis. Read the two "
+        "scores against each other first."
+    ),
     # ---- tabs ----------------------------------------------------------
+    "tab.group.analysis": "Analysis",
+    "tab.group.editing": "Editing",
+    "tab.edit.sunofix": "SunoFix",
+    "tab.edit.midi": "To MIDI",
     "tab.spectrum": "Spectrum",
     "tab.timeline": "Timeline map",
     "tab.layers": "Layers",
     "tab.artifacts": "Artifacts",
-    "tab.overview": "Overview",
     "tab.detector_data": "Detector data",
     "tab.comparison": "Compare versions",
     "tab.technical": "Technical data",
+    # ---- settings panel --------------------------------------------------
+    "settings.open": "⚙  muscriptor setup",
+    "settings.title": "### muscriptor setup",
+    "settings.close": "Close",
+    "settings.token.heading": "#### Hugging Face token",
+    "settings.token.intro": (
+        "Needed only to download the gated muscriptor weights. It stays on this "
+        "machine."
+    ),
+    "disc.token.handling.title": "Where the token goes, and where it does not",
+    "disc.token.handling.body": (
+        "It is handed to the local muscriptor process as an environment "
+        "variable and goes nowhere else: not into the run history, not into the "
+        "technical-data panel, not into any log. It is never shown back to you "
+        "here either — only its last four characters, so you can tell which "
+        "token is stored.\n\n"
+        "Stored here it lives in `data/settings.json` as plain text, which is a "
+        "local file with no protection beyond your account. If you would rather "
+        "not keep it on disk at all, set `HF_TOKEN` in the environment before "
+        "starting the app — that takes priority over anything stored here."
+    ),
+    "settings.token.label": "Token",
+    "settings.token.placeholder": "hf_…",
+    "settings.token.save": "Save token",
+    "settings.token.clear": "Delete token",
+    "settings.token.status.env": (
+        "In use: `HF_TOKEN` from the environment. Anything stored here is ignored."
+    ),
+    "settings.token.status.stored": "Stored in `data/settings.json`: `{fingerprint}`",
+    "settings.token.status.none": (
+        "No token. Transcription weights cannot be downloaded."
+    ),
+    "settings.token.cleared": "Token deleted from `data/settings.json`.",
+    "settings.token.empty": "Enter a token first.",
+    "settings.links": (
+        '<ul class="settings-links">'
+        '<li><a href="https://huggingface.co/settings/tokens" target="_blank" '
+        'rel="noopener">Create a token</a> — a <strong>Read</strong> token is '
+        "enough. If you make a <em>fine-grained</em> one instead, it will not "
+        "reach gated repositories unless you tick "
+        "<em>Read access to contents of all public gated repos you can "
+        "access</em>. That single checkbox is the most common reason a download "
+        "fails.</li>"
+        '<li><a href="https://huggingface.co/MuScriptor/muscriptor-large" '
+        'target="_blank" rel="noopener">Accept the model licence</a> — open the '
+        "page for the size you intend to use and accept its terms. Access is "
+        "granted automatically.</li></ul>"
+    ),
+    "settings.license.accept": "I have read the CC BY-NC 4.0 terms on the weights",
+    "settings.model.heading": "#### Transcription model",
+    "settings.model.label": "Checkpoint",
+    "settings.model.small": "small · 103M · ~0.4 GB",
+    "settings.model.medium": "medium · 307M · ~1.2 GB",
+    "settings.model.large": "large · 1.4B · ~5.6 GB",
+    "settings.model.note": (
+        "Bigger transcribes better and costs more VRAM. The download occupies "
+        "the whole interface until it finishes — the app runs one job at a time."
+    ),
+    "settings.download": "Download weights",
+    "settings.download.done": "`{model}` downloaded and verified.",
+    "settings.check": "Check the environment",
+    "settings.repos.heading": "#### Upstream repositories",
+    "settings.repos.note": (
+        "The detectors and the transcriber are separate clones sitting beside "
+        "this repository. The detectors are held at the commits this wrapper "
+        "was verified against, so their scores stay comparable across runs — "
+        "they are shown here but not updated from the interface. muscriptor "
+        "tracks its branch and can be fast-forwarded."
+    ),
+    "settings.repos.refresh": "Refresh status",
+    "settings.repos.pull": "Update muscriptor",
+    # ---- readiness checklist ---------------------------------------------
+    "readiness.heading": "MIDI transcription",
+    "readiness.ready": "Ready.",
+    "readiness.blocked": "Not set up yet — {detail}",
+    "readiness.unverified": (
+        "Ready. The package check has not been run; a transcription would "
+        "report the problem itself."
+    ),
+    "readiness.item.clone": "muscriptor clone",
+    "readiness.item.env": "Conda environment",
+    "readiness.item.license": "Licence acknowledged",
+    "readiness.item.token": "Hugging Face token",
+    "readiness.item.weights": "Weights downloaded",
+    "readiness.item.package": "Package check",
+    "readiness.fix.clone": (
+        "Clone `https://github.com/muscriptor/muscriptor.git` next to this "
+        "repository."
+    ),
+    "readiness.fix.env": (
+        "Create the `ai-music-muscriptor` environment — see the MIDI page in "
+        "the documentation."
+    ),
+    "readiness.fix.license": (
+        "Open Settings and confirm you have read the CC BY-NC 4.0 terms."
+    ),
+    "readiness.fix.token": "Add a Hugging Face token in Settings.",
+    "readiness.fix.weights": "Download the selected checkpoint in Settings.",
+    "readiness.fix.package": (
+        "Run the environment check in Settings to see what the adapter reports."
+    ),
+    "readiness.not_checked": "not checked",
+    # ---- upstream repositories -------------------------------------------
+    "table.repo.name": "Repository",
+    "table.repo.head": "HEAD",
+    "table.repo.branch": "Branch",
+    "table.repo.state": "State",
+    "table.repo.pinned": "Verified commit",
+    "repo.state.missing": "not cloned",
+    "repo.state.not_git": "not a git repository",
+    "repo.state.dirty": "local changes",
+    "repo.state.behind": "{count} commits behind",
+    "repo.state.current": "up to date",
+    "repo.state.clean": "clean",
+    "repo.state.detached": "detached",
+    "repo.pin.match": "matches",
+    "repo.pin.drift": "ahead of `{commit}`",
+    "repo.license.upstream": "upstream licence",
+    "repo.license.mit_nc_weights": "MIT code · CC BY-NC weights",
+    "repo.pull.pinned": (
+        "This repository is deliberately held at a verified commit and is not "
+        "updated from here."
+    ),
+    "repo.pull.missing": "The clone is not there.",
+    "repo.pull.not_a_repository": "That directory is not a git repository.",
+    "repo.pull.detached": (
+        "HEAD is detached. Check out a branch by hand first, if that is really "
+        "what you want."
+    ),
+    "repo.pull.dirty": (
+        "The working copy has local changes, so nothing was pulled. Git reports:"
+    ),
+    "repo.pull.pull_failed": "git refused to fast-forward:",
+    "repo.pull.unchanged": "Already up to date at `{commit}`.",
+    "repo.pull.done": "Updated `{previous}` → `{current}` — {subject}",
+    "repo.pull.dependencies": (
+        "`pyproject.toml` changed. Re-run `pip install -e ..\\muscriptor` in "
+        "the `ai-music-muscriptor` environment and refresh "
+        "`environments/ai-music-muscriptor.txt`."
+    ),
+    "repo.pull.comparability": (
+        "An upstream change means MIDI produced before and after is not "
+        "guaranteed to match. Each transcription records the version it used."
+    ),
+    "repo.pull.pin_line": (
+        "If this version works, record it: `{commit}` in `README.md` and "
+        "`music_lab_ui/repositories.py`."
+    ),
+    # ---- MIDI transcription ----------------------------------------------
+    "midi.source.label": "What to transcribe",
+    "midi.source.stem": "Stem sent from Layers",
+    "midi.source.run": "Audio of the current run",
+    "midi.source.upload": "A file",
+    "midi.source.none": "Nothing selected yet.",
+    "midi.source.selected": "Source: `{name}`",
+    "midi.upload.label": "Audio file (WAV, FLAC, MP3)",
+    "midi.model.label": "Checkpoint for this run",
+    "midi.instruments.label": "Only these instruments",
+    "midi.instruments.placeholder": "drums, acoustic_piano",
+    "midi.instruments.info": (
+        "Leave everything unticked to transcribe whatever muscriptor hears."
+    ),
+    "midi.run": "▷  Transcribe to MIDI",
+    "midi.status.idle": "Pick a source and press transcribe.",
+    "midi.status.done": "Saved to `{path}` · {seconds} s",
+    "midi.file.label": "MIDI file",
+    "midi.payload.label": "What produced this file",
+    "midi.plot.title": "Transcribed notes",
+    "midi.plot.pitch": "MIDI pitch",
+    "midi.plot.label": "Piano roll",
+    "midi.preview.label": "Preview",
+    "midi.empty.notes": "The transcription appears here",
+    "midi.preview.summary": (
+        "**{notes} notes** across {tracks} track(s) · {seconds} s · {tempo} BPM\n\n"
+        "Tracks: {names}"
+    ),
+    "midi.preview.note": (
+        "> The preview is synthesised from the notes with plain sine and noise "
+        "voices — a check that they land where the audio does, not a rendering. "
+        "Clicking the piano roll seeks the player."
+    ),
+    # ---- layers -> MIDI ----------------------------------------------------
+    "layers.pick.none": "That row has no file behind it.",
+    "layers.pick.selected": "Selected: `{name}`",
+    "layers.send_to_midi": "→  Send to MIDI",
+    # ---- muscriptor failures ------------------------------------------------
+    "muscriptor.error.gated_repo": (
+        "The weights are gated. Open the model page, accept CC BY-NC 4.0 — "
+        "access is granted automatically — and try again."
+    ),
+    "muscriptor.error.token_missing": (
+        "Hugging Face rejected the request as unauthenticated. Add a token in "
+        "Settings, or set `HF_TOKEN` before starting the app."
+    ),
+    "muscriptor.error.token_scope": (
+        "The token works but cannot read gated repositories. A fine-grained "
+        "token needs *Read access to contents of all public gated repos you "
+        "can access*."
+    ),
+    "muscriptor.error.repo_missing": "Hugging Face has no such repository.",
+    "muscriptor.error.offline": (
+        "Hugging Face is unreachable. Downloading needs a connection; "
+        "transcribing with weights you already have does not."
+    ),
+    "muscriptor.error.cuda_oom": (
+        "Not enough VRAM for this checkpoint. Try a smaller one, or switch the "
+        "device to CPU."
+    ),
+    "muscriptor.error.package_missing": (
+        "muscriptor is not installed in the `ai-music-muscriptor` environment."
+    ),
+    "muscriptor.error.file_missing": "The file is not there.",
+    "muscriptor.error.stalled": (
+        "The transcription process went silent. It was stopped; nothing was "
+        "left half-written."
+    ),
+    "muscriptor.error.timeout": "The run went past its time limit and was stopped.",
+    "muscriptor.error.http_error": "Hugging Face returned an error.",
+    "muscriptor.error.failed": "The run failed.",
+    "error.no_midi_source": "Choose what to transcribe",
+    "error.pick_stem": "Pick a stem in the table first",
+    "error.midi_not_ready": "MIDI transcription is not set up yet — see Settings",
     # ---- detector cards ------------------------------------------------
     "detector.kind": "AI music detector",
     "detector.probability": "AI probability",
     "detector.status": "Status",
     "detector.caveat": "Caveat",
+    "detector.caveat.title": "Caveat",
     "detector.unknown_device": "unknown",
     "detector.seconds": "{value} s",
     "status.not_applicable": "Not applicable",
@@ -97,13 +330,23 @@ _EN: dict[str, str] = {
     "unit.seconds": "s",
     "unit.hertz": "Hz",
     "unit.megabytes": "MB",
+    "unit.kilohertz": "kHz",
+    "unit.stereo": "stereo",
+    "meta.empty": "No file loaded",
+    "disc.file.stereo.title": "Stereo image",
     "unit.mono": "mono",
     "unit.percentage_points": "pp",
     # ---- help ----------------------------------------------------------
     "help.aria": "Explanation: {title}",
+    "help.aria.warn": "Important: {title}",
     "help.measured": "What is measured",
     "help.reading": "How to read it",
     "help.limits": "Limitations",
+    "help.lofcz.fakeprint.title": "lofcz: native fakeprint",
+    "help.lofcz.lower_hull.title": "lofcz: spectrum and lower hull",
+    "help.fst.stage1.title": "FST: Stage-1 classes",
+    "help.fst.self_similarity.title": "FST: self-similarity",
+    "help.fst.fusion_gate.title": "FST: fusion gate",
     "help.lofcz.fakeprint.measured": "The normalized frequency residue that is fed into the ONNX model.",
     "help.lofcz.fakeprint.reading": "Compare the shape, the peak frequencies and the change between A and B.",
     "help.lofcz.fakeprint.limits": "A single bin value is not an AI probability and carries no time information.",
@@ -180,6 +423,8 @@ _EN: dict[str, str] = {
     "telemetry.timeline.threshold": "50% threshold",
     "telemetry.timeline.gate": "FST fusion gate (right axis)",
     "telemetry.timeline.gate_hover": "Segment at %{x:.1f} s",
+    "telemetry.timeline.fst_class": "FST Stage-1 class {index} (right axis)",
+    "telemetry.timeline.fst_axis": "FST per segment, 0–1",
     "telemetry.timeline.title": "Map: where the fingerprint shows",
     "telemetry.timeline.axis": "lofcz per window, %",
     "telemetry.version_a": "Version A",
@@ -188,6 +433,10 @@ _EN: dict[str, str] = {
         "The beat-aligned segment grids of A and B do not match; no Δ matrix is built"
     ),
     # ---- service messages -------------------------------------------------
+    "error.restart_remote": (
+        "The server is bound to {host}, not to this machine — restart it from "
+        "the terminal that started it."
+    ),
     "error.no_audio": "Add an audio file",
     "error.no_detector": "Select at least one detector",
     "error.unsupported_format": "WAV, FLAC and MP3 are supported",
@@ -212,7 +461,7 @@ _EN: dict[str, str] = {
     # ---- empty-plot placeholders -----------------------------------------
     "empty.start": "Add a file and run the analysis",
     "empty.surface": "The 3D surface appears after an analysis",
-    "empty.rms": "RMS appears after an analysis",
+    "empty.rms": "The whole track appears once a file is loaded",
     "empty.spectrum": "The average spectrum appears after an analysis",
     "empty.timeline": "Build the map after an analysis",
     "empty.layers": "Add layers and run the measurement",
@@ -233,7 +482,7 @@ _EN: dict[str, str] = {
     "empty.heatmap_duration": "Heatmap unavailable: durations differ by more than 5%",
     # ---- controls ---------------------------------------------------------
     "app.high_detail": "Increase 3D detail",
-    "app.plot.rms_envelope": "RMS envelope",
+    "app.plot.fulltrack": "Whole track",
     "app.timeline.window": "Window, s",
     "app.timeline.hop": "Hop, s",
     "app.timeline.build": "Build map",
@@ -254,15 +503,6 @@ _EN: dict[str, str] = {
     "app.compare.native_heading": "#### Change in the detectors' native measurements",
     "app.history.title": "Analysis history",
     "app.history.subtitle": "Saved runs are used for manual version comparison.",
-    "app.overview.heading": "How to read the result",
-    "app.overview.body": (
-        "First compare the two detector scores. Then use the spectrogram as a "
-        "measurement of the audio, not as an AI classifier in its own right."
-    ),
-    "app.run_overview": (
-        "Run <code>{run_id}</code> is stored locally. Compare scores between "
-        "models and keep their different training domains in mind."
-    ),
     "app.status.done": "Status: done · run `{run_id}` saved.",
     # ---- table headers ----------------------------------------------------
     "table.metadata.parameter": "Parameter",
@@ -304,72 +544,240 @@ _EN: dict[str, str] = {
     "error.pick_both": "Select Version A and Version B",
     "error.pick_a": "Select Version A",
     # ---- tab documentation -------------------------------------------------
-    "doc.timeline": """
-### Where exactly the fingerprint shows
-
-A global score does not say what to fix. Here the fakeprint is computed with a
-sliding window, so you can see which sections pull the score up.
-
-The model was trained on an average over a whole track, so window values are a
-**relative map inside one track**, not a calibrated probability per second. The
-shorter the window, the noisier the estimate.
-
-Clicking the curve seeks the player to that moment.
-""",
-    "doc.layers": """
-### What to redo first
-
-Load the individual tracks **before mixdown** — the ones the studio track was
-built from. Each is measured separately, so you can see which one carries the
-fingerprint: drums 97% and live guitar 15%, for example.
-
-This is a diagnostic pass. It is **not saved** to the history and creates no
-version: to record a layer as a version, analyse it the normal way on the left.
-
-Only lofcz is used. FST needs detectable beats, which most stems do not have,
-and on a full mix it is available in the main analysis anyway.
-
-Do not split a finished mix with a separation tool for this: separation adds its
-own artifacts and raises the score by itself.
-""",
-    "doc.artifacts": """
-### What is audible, not what the model thinks
-
-These metrics are computed straight from the signal and never consult a
-detector. They stay meaningful when the models disagree or go out of domain, and
-they point at edits you can actually hear.
-
-On their own the numbers mean almost nothing — add references (your own live
-recordings or commercial tracks) and read your track next to them. The
-measurement method is identical for every file.
-
-- **Attack** — the typical sharpest rise in loudness over 20 ms. Smeared
-  transients lower it.
-- **Rolloff 95%** — where the bulk of the spectral energy ends.
-- **HF cliff** — the steepest decay above 4 kHz. A strongly negative value means
-  a hard wall from a codec or generator; live material rolls off gently.
-- **Noise floor and its flatness** — a very low and very flat floor means
-  sterile digital material with no room and no signal-path noise.
-- **Low and high correlation** — a collapsed or unnaturally wide stereo image.
-
-⚠️ Compare like with like. **MP3 produces an HF cliff on its own**, regardless
-of where the music came from, so MP3 against WAV shows the codec rather than the
-generator. For the same reason, do not compare a single stem against a full mix.
-""",
-    "doc.detector_data": """
-### The models' native measurements
-
-These are the original preprocessing and model signals. Interpretation is placed
-below them and does not alter the raw outputs.
-""",
-    "doc.comparison": """
-### Comparing two processings of one source
-
-Choose, for example, the original stem as **Version A** and the same stem after
-processing as **Version B**. The difference is built as `B − A`. Comparing
-different songs mostly reflects differences in the musical material and rarely
-produces a useful conclusion.
-""",
+    "lead.detector_data": (
+        "The models' own preprocessing and outputs, unaltered. Each badge "
+        "explains the chart below it."
+    ),
+    "lead.timeline": (
+        "Where along the track the fingerprint shows. Clicking the curve seeks "
+        "the player."
+    ),
+    "lead.layers": (
+        "Measure the separate tracks a mix was built from, to see which one "
+        "carries the fingerprint."
+    ),
+    "lead.artifacts": (
+        "Measured from the signal, with no detector involved — so add "
+        "references and read your track next to them."
+    ),
+    "lead.comparison": "Two processings of one source, read as `B − A`.",
+    "lead.midi": (
+        "Transcribe audio into notes with muscriptor. Runs locally, on your GPU."
+    ),
+    "lead.sunofix": (
+        "Planned: repairing generation artifacts, driven by the measurements on "
+        "the **Artifacts** tab rather than by ear. Nothing here runs yet — the "
+        "design is in `docs/editing-roadmap.md`."
+    ),
+    # ---- moved method notes --------------------------------------------------
+    "disc.spectrum.reading.title": "Reading the spectrogram",
+    "disc.spectrum.reading.measured": (
+        "Level per frequency band over time, straight from the audio."
+    ),
+    "disc.spectrum.reading.reading": (
+        "Use it as a measurement of the audio, not as an AI classifier in its "
+        "own right. Compare the two detector scores first."
+    ),
+    "disc.spectrum.reading.limits": (
+        "A spectrogram shows what a codec or a generator did to the signal; it "
+        "says nothing on its own about where the music came from."
+    ),
+    "disc.timeline.method.title": "What a window value is, and is not",
+    "disc.timeline.method.body": (
+        "A global score does not say what to fix. Here the fakeprint is "
+        "computed with a sliding window, so you can see which sections pull the "
+        "score up.\n\n"
+        "The model was trained on an average over a whole track, so window "
+        "values are a **relative map inside one track**, not a calibrated "
+        "probability per second. Compare windows against other windows of the "
+        "same track; comparing one against another track's global score means "
+        "nothing. The shorter the window, the noisier the estimate."
+    ),
+    "disc.layers.what_to_load.title": "What to load, and what comes back",
+    "disc.layers.what_to_load.body": (
+        "Load the individual tracks **before mixdown** — the ones the studio "
+        "track was built from. Each is measured separately, so you can see "
+        "which one carries the fingerprint: drums 97% and live guitar 15%, for "
+        "example.\n\n"
+        "This is a diagnostic pass. It is **not saved** to the history and "
+        "creates no version: to record a layer as a version, analyse it the "
+        "normal way on the left.\n\n"
+        "Only lofcz is used. FST needs detectable beats, which most stems do "
+        "not have, and on a full mix it is available in the main analysis "
+        "anyway."
+    ),
+    "disc.layers.separation.title": "Do not split a finished mix for this",
+    "disc.layers.separation.body": (
+        "A separation tool adds its own artifacts and raises the score by "
+        "itself, so what you would be measuring is the separator rather than "
+        "the material. Use the tracks you actually recorded or generated."
+    ),
+    "disc.artifacts.metrics.title": "What each column measures",
+    "disc.artifacts.metrics.body": """
+      <ul>
+        <li><strong>Attack</strong> — the typical sharpest rise in loudness over
+        20 ms. Smeared transients lower it.</li>
+        <li><strong>Rolloff 95%</strong> — where the bulk of the spectral energy
+        ends.</li>
+        <li><strong>HF cliff</strong> — the steepest decay above 4 kHz. A
+        strongly negative value means a hard wall from a codec or generator;
+        live material rolls off gently.</li>
+        <li><strong>Noise floor and its flatness</strong> — a very low and very
+        flat floor means sterile digital material with no room and no
+        signal-path noise.</li>
+        <li><strong>Low and high correlation</strong> — a collapsed or
+        unnaturally wide stereo image.</li>
+      </ul>
+    """,
+    "disc.artifacts.compare.title": "Compare like with like",
+    "disc.artifacts.compare.body": (
+        "**MP3 produces an HF cliff on its own**, regardless of where the music "
+        "came from, so MP3 against WAV shows the codec rather than the "
+        "generator. For the same reason, do not compare a single stem against a "
+        "full mix.\n\n"
+        "On their own these numbers mean almost nothing. Add references — your "
+        "own live recordings, or commercial tracks — and read your track next "
+        "to them. The measurement method is identical for every file."
+    ),
+    "disc.comparison.method.title": "What makes a comparison useful",
+    "disc.comparison.method.body": (
+        "Choose, for example, the original stem as **Version A** and the same "
+        "stem after processing as **Version B**. The difference is built as "
+        "`B − A`.\n\n"
+        "Comparing different songs mostly reflects differences in the musical "
+        "material and rarely produces a useful conclusion."
+    ),
+    "disc.midi.stems.title": "Send it stems, not mixes",
+    "disc.midi.stems.body": (
+        "Polyphonic transcription of a dense mix is not a solved problem, and "
+        "the difference between a bass stem and the full track it came from is "
+        "the difference between a result worth editing and one worth deleting."
+        "\n\n"
+        "That is what the button on the **Layers** tab is for: measure the "
+        "stems, click the row you want, send it straight here."
+    ),
+    "disc.midi.reproducibility.title": "What is recorded with every file",
+    "disc.midi.reproducibility.body": (
+        "Decoding is greedy — no sampling, no temperature — so the same audio "
+        "with the same settings produces the same MIDI.\n\n"
+        "Every run writes a JSON file beside the `.mid` with the checkpoint, "
+        "the decoding parameters and the muscriptor version, so an old "
+        "transcription stays interpretable after an update. Files land in "
+        "`output/midi/`, not in a cache that is wiped daily."
+    ),
+    "disc.midi.setup.title": "Setup",
+    # ---- the app's one long-form licence statement ---------------------------
+    "disc.licence.weights.title": "Licence on the transcription weights",
+    "disc.licence.weights.body": (
+        "The muscriptor **code** is MIT, and so is this wrapper. The **model "
+        "weights are CC BY-NC 4.0 — non-commercial use only**, and the model "
+        "card adds a further condition: the output must not be used for illegal "
+        "or unauthorised activity, explicitly including transcribing music you "
+        "hold no rights to.\n\n"
+        "If you release what you build from these transcriptions, that boundary "
+        "is yours to judge. Every tool in this workspace carries its own terms; "
+        "the README lists them."
+    ),
+    # ---- MIDI guides ---------------------------------------------------------
+    # Authored markup, not user input: these bodies carry lists and links and are
+    # inserted unescaped by disclosure_html.
+    "guide.midi.basics.title": "Opening the MIDI in FL Studio",
+    "guide.midi.basics.body": """
+      <p>Two routes in. Dragging the <code>.mid</code> from the browser onto the
+      playlist is the fast one; <em>File &rarr; Import &rarr; MIDI file</em>
+      gives you the import options, including one channel per track, which is
+      what you want when muscriptor found several instruments.</p>
+      <ol>
+        <li><strong>Set the project tempo first.</strong> The transcription
+        carries a detected tempo; if the project disagrees, everything lands off
+        the grid and looks like a transcription error when it is not.</li>
+        <li><strong>Do not quantise straight away.</strong> Listen to the raw
+        notes against the audio first. Quantising a bad transcription hides the
+        mistakes instead of showing them.</li>
+        <li><strong>Clean the piano roll before anything else.</strong> Short
+        ghost notes and octave doubles are the usual junk. Deleting them takes a
+        minute and saves an hour of wondering why a part sounds wrong.</li>
+        <li><strong>Keep the original file.</strong> Every transcription is
+        saved to <code>output/midi/</code> with a JSON note of the checkpoint and
+        settings beside it, so an edited version never becomes the only copy.</li>
+      </ol>
+      <p>Reference:
+      <a href="https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/fformats_other_mid.htm"
+      target="_blank" rel="noopener">MIDI files in the FL Studio manual</a> ·
+      <a href="https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/pianoroll.htm"
+      target="_blank" rel="noopener">Piano roll</a> ·
+      <a href="https://www.image-line.com/fl-studio-learning/" target="_blank"
+      rel="noopener">Image-Line's own video tutorials</a>.</p>
+    """,
+    "guide.midi.drums.title": "Drums: MIDI into FPC, and where breaks come from",
+    "guide.midi.drums.body": """
+      <p>Drum MIDI is the one part that pays off immediately, because replacing
+      a generated kit with real samples is exactly the kind of substitution that
+      lowers a detector score for the right reason.</p>
+      <p><strong>FPC</strong> is FL Studio's pad sampler and the natural
+      destination. Load an empty FPC, drop your samples onto the pads, then open
+      the transcribed MIDI in its piano roll and line the pad keys up with the
+      notes that arrived. Each pad's trigger key is set in Play Key/Octave, so
+      the mapping is adjusted on the pad, not by moving every note.</p>
+      <p>What to watch for in a transcription: hi-hats come out dense and often
+      over-detected, kick and snare are usually solid, and ghost snares are the
+      first thing to thin out. Transcribe the drum stem on its own rather than
+      the full mix — bass leaking into the kick band is what produces phantom
+      hits.</p>
+      <p>Sources for the samples themselves:
+      <a href="https://www.musicradar.com/tag/sampleradar" target="_blank"
+      rel="noopener">MusicRadar SampleRadar</a> for free packs, including a lot
+      of breakbeat material (check each pack's own terms) ·
+      <a href="https://splice.com/sounds/genres/drum-and-bass/packs"
+      target="_blank" rel="noopener">Splice drum &amp; bass packs</a> on a
+      subscription, which is where most current one-shots and breaks live.</p>
+      <p>Reference:
+      <a href="https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/plugins/FPC.htm"
+      target="_blank" rel="noopener">FPC in the FL Studio manual</a>.</p>
+    """,
+    "guide.midi.acoustic.title": "Guitar, strings, orchestra",
+    "guide.midi.acoustic.body": """
+      <p>Melodic parts need a sampler with real recordings behind it; a synth
+      preset will not sell a violin line. Two free routes that cover most of it:</p>
+      <ul>
+        <li><a href="https://splice.com/instrument" target="_blank"
+        rel="noopener">Splice INSTRUMENT</a> — the former Spitfire LABS library,
+        now under Splice. VST3/AU, free presets covering strings, pianos and
+        more, with paid packs on top.</li>
+        <li><a href="https://www.plogue.com/products/sforzando.html"
+        target="_blank" rel="noopener">Plogue sforzando</a> — a free SFZ player.
+        Plain and ugly, but it opens the enormous body of free SFZ libraries
+        that exist for orchestral and folk instruments, accordion included.</li>
+      </ul>
+      <p>What the transcription will and will not give you: pitch and timing,
+      yes. Articulation, no — legato, staccato, bowing and slides are not in the
+      MIDI and have to be played back in by hand, usually through a keyswitch or
+      an expression lane. A transcribed string line always sounds mechanical
+      until that is done; that is the work, not a bug.</p>
+      <p>Guitar in particular transcribes as notes with no fret or string
+      information, so chord voicings come out in whatever octave the model
+      chose. It is usually faster to treat the result as a chord chart and
+      re-voice it than to fight the notes it produced.</p>
+    """,
+    "guide.midi.bass.title": "Bass and synths",
+    "guide.midi.bass.body": """
+      <p>Bass is where transcription is least reliable, and it is worth knowing
+      why before blaming the model: a sub-bass fundamental below roughly 40 Hz
+      often lands an octave off, and heavily distorted or reese basses have so
+      much harmonic content that the model hears the harmonics as the note.</p>
+      <p>Practical order of work: transcribe the bass stem alone, check the
+      octave against the audio before anything else, and expect to correct the
+      octave on whole phrases rather than single notes.</p>
+      <p>For playback, any subtractive or wavetable synth will do.
+      <a href="https://vital.audio/" target="_blank" rel="noopener">Vital</a>
+      has a free tier with the full synth and a limited preset library, and
+      FL Studio's own Sytrus and 3xOsc are already installed and perfectly
+      capable of a clean sub.</p>
+      <p>One thing that matters more than the synth: a transcribed bass line
+      keeps the note lengths of the original, which for a plucked or gated bass
+      are usually too long. Shortening the notes to match the groove does more
+      for the feel than any preset choice.</p>
+    """,
 }
 
 _RU: dict[str, str] = {
@@ -378,13 +786,17 @@ _RU: dict[str, str] = {
     "app.eyebrow": "LOCAL FORENSIC AUDIO WORKSPACE",
     "app.tagline": "Локальный анализ одного трека или стема",
     "app.language": "Язык",
-    "app.step.upload": "### 1. Загрузите аудиофайл",
-    "app.step.metadata": "### 2. Информация о файле",
-    "app.step.detectors": "### 3. Детекторы",
-    "app.audio.label": "Аудиофайл",
+    "app.restart.confirm": (
+        "Перезапустить сервер?\n\n"
+        "Подхватятся изменения в стилях, переводах и Python. Эта страница "
+        "перезагрузится с нуля; всё, что не проанализировано, потеряется. "
+        "Сохранённые запуски не трогаются."
+    ),
+    "app.restart.running": "Перезапуск — страница перезагрузится сама.",
+    "app.audio.label": "1. Аудиофайл",
     "app.note.label": "Заметка к версии",
     "app.note.placeholder": "Например: vocal после de-esser v2",
-    "app.detectors.label": "Детекторы",
+    "app.detectors.label": "2. Детекторы",
     "app.detectors.lofcz": "lofcz · сигнальная модель",
     "app.detectors.fst": "FST · структурная модель",
     "app.analyze": "▷  Запустить анализ",
@@ -393,21 +805,250 @@ _RU: dict[str, str] = {
         "> Результаты — измерения конкретных версий моделей, а не "
         "доказательство происхождения аудио."
     ),
-    "app.empty.detectors": "После анализа здесь появятся отдельные результаты lofcz и FST.",
+    "app.empty.detectors": (
+        "После анализа здесь появятся результаты lofcz и FST. Сначала "
+        "сопоставьте два score между собой."
+    ),
     # ---- tabs ----------------------------------------------------------
+    "tab.group.analysis": "Анализ",
+    "tab.group.editing": "Редактирование",
+    "tab.edit.sunofix": "SunoFix",
+    "tab.edit.midi": "В MIDI",
     "tab.spectrum": "Спектр",
     "tab.timeline": "Карта по времени",
     "tab.layers": "Слои",
     "tab.artifacts": "Артефакты",
-    "tab.overview": "Обзор",
     "tab.detector_data": "Данные детекторов",
     "tab.comparison": "Сравнение версий",
     "tab.technical": "Технические данные",
+    # ---- settings panel --------------------------------------------------
+    "settings.open": "⚙  Настройка muscriptor",
+    "settings.title": "### Настройка muscriptor",
+    "settings.close": "Закрыть",
+    "settings.token.heading": "#### Токен Hugging Face",
+    "settings.token.intro": (
+        "Нужен только чтобы скачать gated-веса muscriptor. Остаётся на этой "
+        "машине."
+    ),
+    "disc.token.handling.title": "Куда токен попадает и куда нет",
+    "disc.token.handling.body": (
+        "Он передаётся локальному процессу muscriptor переменной окружения и "
+        "никуда больше не попадает: ни в историю запусков, ни в панель "
+        "технических данных, ни в логи. Обратно он вам здесь тоже не "
+        "показывается — только последние четыре символа, чтобы понимать, какой "
+        "токен сохранён.\n\n"
+        "Сохранённый здесь, он лежит в `data/settings.json` открытым текстом — "
+        "это локальный файл без защиты сверх вашей учётной записи. Если держать "
+        "его на диске не хочется, задайте `HF_TOKEN` в окружении до запуска "
+        "приложения: он имеет приоритет над сохранённым здесь."
+    ),
+    "settings.token.label": "Токен",
+    "settings.token.placeholder": "hf_…",
+    "settings.token.save": "Сохранить токен",
+    "settings.token.clear": "Удалить токен",
+    "settings.token.status.env": (
+        "Используется `HF_TOKEN` из окружения. Сохранённый здесь игнорируется."
+    ),
+    "settings.token.status.stored": "Сохранён в `data/settings.json`: `{fingerprint}`",
+    "settings.token.status.none": "Токена нет. Веса скачать не получится.",
+    "settings.token.cleared": "Токен удалён из `data/settings.json`.",
+    "settings.token.empty": "Сначала введите токен.",
+    "settings.links": (
+        '<ul class="settings-links">'
+        '<li><a href="https://huggingface.co/settings/tokens" target="_blank" '
+        'rel="noopener">Создать токен</a> — достаточно токена типа '
+        "<strong>Read</strong>. Если сделаете вместо него "
+        "<em>fine-grained</em>, до gated-репозиториев он не достанет, пока не "
+        "отмечен пункт <em>Read access to contents of all public gated repos "
+        "you can access</em>. Эта одна галочка — самая частая причина, по "
+        "которой загрузка не идёт.</li>"
+        '<li><a href="https://huggingface.co/MuScriptor/muscriptor-large" '
+        'target="_blank" rel="noopener">Принять лицензию модели</a> — откройте '
+        "страницу того размера, которым собираетесь пользоваться, и примите "
+        "её условия. Доступ выдаётся автоматически.</li></ul>"
+    ),
+    "settings.license.accept": "Я прочитал условия CC BY-NC 4.0 на веса",
+    "settings.model.heading": "#### Модель транскрипции",
+    "settings.model.label": "Чекпоинт",
+    "settings.model.small": "small · 103M · ~0.4 ГБ",
+    "settings.model.medium": "medium · 307M · ~1.2 ГБ",
+    "settings.model.large": "large · 1.4B · ~5.6 ГБ",
+    "settings.model.note": (
+        "Больше — точнее транскрипция и больше VRAM. Загрузка занимает весь "
+        "интерфейс до конца: приложение выполняет одну задачу за раз."
+    ),
+    "settings.download": "Скачать веса",
+    "settings.download.done": "`{model}` скачан и проверен.",
+    "settings.check": "Проверить окружение",
+    "settings.repos.heading": "#### Апстрим-репозитории",
+    "settings.repos.note": (
+        "Детекторы и транскрайбер — отдельные клоны рядом с этим репозиторием. "
+        "Детекторы удерживаются на коммитах, против которых обёртка проверялась, "
+        "чтобы их score оставались сравнимыми между запусками: здесь они "
+        "показываются, но из интерфейса не обновляются. muscriptor следит за "
+        "своей веткой и может быть перемотан вперёд."
+    ),
+    "settings.repos.refresh": "Обновить статус",
+    "settings.repos.pull": "Обновить muscriptor",
+    # ---- readiness checklist ---------------------------------------------
+    "readiness.heading": "Перевод в MIDI",
+    "readiness.ready": "Готово к работе.",
+    "readiness.blocked": "Ещё не настроено — {detail}",
+    "readiness.unverified": (
+        "Готово. Проверка пакета не запускалась; транскрипция сама сообщит о "
+        "проблеме, если она есть."
+    ),
+    "readiness.item.clone": "Клон muscriptor",
+    "readiness.item.env": "Conda-среда",
+    "readiness.item.license": "Лицензия подтверждена",
+    "readiness.item.token": "Токен Hugging Face",
+    "readiness.item.weights": "Веса скачаны",
+    "readiness.item.package": "Проверка пакета",
+    "readiness.fix.clone": (
+        "Клонируйте `https://github.com/muscriptor/muscriptor.git` рядом с этим "
+        "репозиторием."
+    ),
+    "readiness.fix.env": (
+        "Создайте среду `ai-music-muscriptor` — см. страницу MIDI в "
+        "документации."
+    ),
+    "readiness.fix.license": (
+        "Откройте настройки и подтвердите, что прочитали условия CC BY-NC 4.0."
+    ),
+    "readiness.fix.token": "Добавьте токен Hugging Face в настройках.",
+    "readiness.fix.weights": "Скачайте выбранный чекпоинт в настройках.",
+    "readiness.fix.package": (
+        "Запустите проверку окружения в настройках, чтобы увидеть, что "
+        "сообщает адаптер."
+    ),
+    "readiness.not_checked": "не проверялось",
+    # ---- upstream repositories -------------------------------------------
+    "table.repo.name": "Репозиторий",
+    "table.repo.head": "HEAD",
+    "table.repo.branch": "Ветка",
+    "table.repo.state": "Состояние",
+    "table.repo.pinned": "Проверенный коммит",
+    "repo.state.missing": "не клонирован",
+    "repo.state.not_git": "не git-репозиторий",
+    "repo.state.dirty": "есть локальные правки",
+    "repo.state.behind": "отстаёт на {count} коммитов",
+    "repo.state.current": "актуален",
+    "repo.state.clean": "чисто",
+    "repo.state.detached": "detached",
+    "repo.pin.match": "совпадает",
+    "repo.pin.drift": "ушёл вперёд от `{commit}`",
+    "repo.license.upstream": "лицензия апстрима",
+    "repo.license.mit_nc_weights": "код MIT · веса CC BY-NC",
+    "repo.pull.pinned": (
+        "Этот репозиторий намеренно удерживается на проверенном коммите и "
+        "отсюда не обновляется."
+    ),
+    "repo.pull.missing": "Клона нет на месте.",
+    "repo.pull.not_a_repository": "Эта папка не является git-репозиторием.",
+    "repo.pull.detached": (
+        "HEAD в detached-состоянии. Если это действительно то, что нужно, "
+        "переключитесь на ветку вручную."
+    ),
+    "repo.pull.dirty": (
+        "В рабочей копии есть локальные правки, поэтому ничего не подтягивалось. "
+        "Git сообщает:"
+    ),
+    "repo.pull.pull_failed": "git отказался перематывать вперёд:",
+    "repo.pull.unchanged": "Уже актуален на `{commit}`.",
+    "repo.pull.done": "Обновлено `{previous}` → `{current}` — {subject}",
+    "repo.pull.dependencies": (
+        "Изменился `pyproject.toml`. Перезапустите `pip install -e "
+        "..\\muscriptor` в среде `ai-music-muscriptor` и обновите "
+        "`environments/ai-music-muscriptor.txt`."
+    ),
+    "repo.pull.comparability": (
+        "Изменение апстрима означает, что MIDI до и после не гарантированно "
+        "совпадёт. Каждая транскрипция записывает версию, которой сделана."
+    ),
+    "repo.pull.pin_line": (
+        "Если эта версия работает, зафиксируйте её: `{commit}` в `README.md` и "
+        "`music_lab_ui/repositories.py`."
+    ),
+    # ---- MIDI transcription ----------------------------------------------
+    "midi.source.label": "Что переводить",
+    "midi.source.stem": "Стем, присланный из «Слоёв»",
+    "midi.source.run": "Аудио текущего запуска",
+    "midi.source.upload": "Файл",
+    "midi.source.none": "Пока ничего не выбрано.",
+    "midi.source.selected": "Источник: `{name}`",
+    "midi.upload.label": "Аудиофайл (WAV, FLAC, MP3)",
+    "midi.model.label": "Чекпоинт для этого прогона",
+    "midi.instruments.label": "Только эти инструменты",
+    "midi.instruments.placeholder": "drums, acoustic_piano",
+    "midi.instruments.info": (
+        "Ничего не отмечено — транскрибировать всё, что muscriptor услышит."
+    ),
+    "midi.run": "▷  Перевести в MIDI",
+    "midi.status.idle": "Выберите источник и запустите перевод.",
+    "midi.status.done": "Сохранено в `{path}` · {seconds} с",
+    "midi.file.label": "MIDI-файл",
+    "midi.payload.label": "Чем сделан этот файл",
+    "midi.plot.title": "Распознанные ноты",
+    "midi.plot.pitch": "Высота MIDI",
+    "midi.plot.label": "Пиано-ролл",
+    "midi.preview.label": "Прослушать",
+    "midi.empty.notes": "Здесь появится транскрипция",
+    "midi.preview.summary": (
+        "**{notes} нот** на {tracks} дорожк(ах) · {seconds} с · {tempo} BPM\n\n"
+        "Дорожки: {names}"
+    ),
+    "midi.preview.note": (
+        "> Превью синтезируется из нот простыми синусами и шумом — это проверка, "
+        "что ноты попадают туда же, куда аудио, а не сведение. Клик по "
+        "пиано-роллу перематывает плеер."
+    ),
+    # ---- layers -> MIDI ----------------------------------------------------
+    "layers.pick.none": "За этой строкой нет файла.",
+    "layers.pick.selected": "Выбрано: `{name}`",
+    "layers.send_to_midi": "→  Отправить в MIDI",
+    # ---- muscriptor failures ------------------------------------------------
+    "muscriptor.error.gated_repo": (
+        "Веса gated. Откройте страницу модели, примите CC BY-NC 4.0 — доступ "
+        "выдаётся автоматически — и попробуйте снова."
+    ),
+    "muscriptor.error.token_missing": (
+        "Hugging Face отклонил запрос как неаутентифицированный. Добавьте токен "
+        "в настройках или задайте `HF_TOKEN` до запуска приложения."
+    ),
+    "muscriptor.error.token_scope": (
+        "Токен работает, но не читает gated-репозитории. Токену fine-grained "
+        "нужен пункт *Read access to contents of all public gated repos you can "
+        "access*."
+    ),
+    "muscriptor.error.repo_missing": "На Hugging Face нет такого репозитория.",
+    "muscriptor.error.offline": (
+        "Hugging Face недоступен. Для загрузки нужно соединение; для "
+        "транскрипции уже скачанными весами — нет."
+    ),
+    "muscriptor.error.cuda_oom": (
+        "Не хватает VRAM под этот чекпоинт. Возьмите меньше или переключите "
+        "устройство на CPU."
+    ),
+    "muscriptor.error.package_missing": (
+        "muscriptor не установлен в среду `ai-music-muscriptor`."
+    ),
+    "muscriptor.error.file_missing": "Файла нет на месте.",
+    "muscriptor.error.stalled": (
+        "Процесс транскрипции замолчал. Он остановлен; недописанного не "
+        "осталось."
+    ),
+    "muscriptor.error.timeout": "Прогон вышел за лимит времени и был остановлен.",
+    "muscriptor.error.http_error": "Hugging Face вернул ошибку.",
+    "muscriptor.error.failed": "Прогон не удался.",
+    "error.no_midi_source": "Выберите, что переводить",
+    "error.pick_stem": "Сначала выберите стем в таблице",
+    "error.midi_not_ready": "Перевод в MIDI ещё не настроен — см. настройки",
     # ---- detector cards ------------------------------------------------
     "detector.kind": "AI music detector",
     "detector.probability": "Вероятность AI",
     "detector.status": "Статус",
     "detector.caveat": "Оговорка",
+    "detector.caveat.title": "Оговорка",
     "detector.unknown_device": "неизвестно",
     "detector.seconds": "{value} с",
     "status.not_applicable": "Не применимо",
@@ -443,13 +1084,23 @@ _RU: dict[str, str] = {
     "unit.seconds": "с",
     "unit.hertz": "Гц",
     "unit.megabytes": "МБ",
+    "unit.kilohertz": "кГц",
+    "unit.stereo": "стерео",
+    "meta.empty": "Файл не загружен",
+    "disc.file.stereo.title": "Стереокартина",
     "unit.mono": "моно",
     "unit.percentage_points": "п.п.",
     # ---- help ----------------------------------------------------------
     "help.aria": "Пояснение: {title}",
+    "help.aria.warn": "Важно: {title}",
     "help.measured": "Что измеряется",
     "help.reading": "Как читать",
     "help.limits": "Ограничения",
+    "help.lofcz.fakeprint.title": "lofcz: нативный fakeprint",
+    "help.lofcz.lower_hull.title": "lofcz: спектр и нижняя огибающая",
+    "help.fst.stage1.title": "FST: классы Stage-1",
+    "help.fst.self_similarity.title": "FST: самоподобие",
+    "help.fst.fusion_gate.title": "FST: fusion gate",
     "help.lofcz.fakeprint.measured": "Нормализованный частотный residue, который передаётся в ONNX.",
     "help.lofcz.fakeprint.reading": "Сравнивайте форму, частоты пиков и изменения между A/B.",
     "help.lofcz.fakeprint.limits": "Значение отдельного bin не является AI probability и не содержит времени.",
@@ -526,6 +1177,8 @@ _RU: dict[str, str] = {
     "telemetry.timeline.threshold": "порог 50%",
     "telemetry.timeline.gate": "FST fusion gate (правая ось)",
     "telemetry.timeline.gate_hover": "Сегмент с %{x:.1f} с",
+    "telemetry.timeline.fst_class": "FST Stage-1 class {index} (правая ось)",
+    "telemetry.timeline.fst_axis": "FST по сегментам, 0–1",
     "telemetry.timeline.title": "Карта: где виден отпечаток",
     "telemetry.timeline.axis": "lofcz по окну, %",
     "telemetry.version_a": "Версия A",
@@ -534,6 +1187,10 @@ _RU: dict[str, str] = {
         "Сетки beat-aligned сегментов A и B не совпадают; Δ matrix не строится"
     ),
     # ---- service messages -------------------------------------------------
+    "error.restart_remote": (
+        "Сервер поднят на {host}, а не на этой машине — перезапустите его из "
+        "терминала, где он запущен."
+    ),
     "error.no_audio": "Добавьте аудиофайл",
     "error.no_detector": "Выберите хотя бы один детектор",
     "error.unsupported_format": "Поддерживаются WAV, FLAC и MP3",
@@ -558,7 +1215,7 @@ _RU: dict[str, str] = {
     # ---- empty-plot placeholders -----------------------------------------
     "empty.start": "Добавьте файл и запустите анализ",
     "empty.surface": "3D-поверхность появится после анализа",
-    "empty.rms": "RMS появится после анализа",
+    "empty.rms": "Весь трек появится после загрузки файла",
     "empty.spectrum": "Средний спектр появится после анализа",
     "empty.timeline": "Постройте карту после анализа",
     "empty.layers": "Добавьте слои и запустите измерение",
@@ -579,7 +1236,7 @@ _RU: dict[str, str] = {
     "empty.heatmap_duration": "Heatmap недоступна: длительности отличаются более чем на 5%",
     # ---- controls ---------------------------------------------------------
     "app.high_detail": "Повысить детализацию 3D",
-    "app.plot.rms_envelope": "RMS огибающая",
+    "app.plot.fulltrack": "Весь трек",
     "app.timeline.window": "Окно, с",
     "app.timeline.hop": "Шаг, с",
     "app.timeline.build": "Построить карту",
@@ -600,16 +1257,6 @@ _RU: dict[str, str] = {
     "app.compare.native_heading": "#### Изменение нативных измерений детекторов",
     "app.history.title": "История анализов",
     "app.history.subtitle": "Сохранённые runs используются для ручного сравнения версий.",
-    "app.overview.heading": "Как читать результат",
-    "app.overview.body": (
-        "Сначала сопоставьте два detector score. Затем используйте "
-        "спектрограмму как измерение аудио, а не как самостоятельный "
-        "AI-классификатор."
-    ),
-    "app.run_overview": (
-        "Run <code>{run_id}</code> сохранён локально. Сравнивайте scores между "
-        "моделями и учитывайте их разные обучающие домены."
-    ),
     "app.status.done": "Статус: готово · run `{run_id}` сохранён.",
     # ---- table headers ----------------------------------------------------
     "table.metadata.parameter": "Параметр",
@@ -651,73 +1298,237 @@ _RU: dict[str, str] = {
     "error.pick_both": "Выберите Версию A и Версию B",
     "error.pick_a": "Выберите Версию A",
     # ---- tab documentation -------------------------------------------------
-    "doc.timeline": """
-### Где именно виден отпечаток
-
-Общий score не говорит, что чинить. Здесь fakeprint считается скользящим окном,
-поэтому видно, какие участки трека тянут оценку вверх.
-
-Модель обучалась на усреднении по всему треку, поэтому оконные значения —
-**относительная карта внутри одного трека**, а не калиброванная вероятность на
-секунду. Чем короче окно, тем шумнее оценка.
-
-Клик по кривой перематывает плеер на этот момент.
-""",
-    "doc.layers": """
-### Что перебивать в первую очередь
-
-Загрузите отдельные дорожки **до сведения** — те, из которых собран трек в
-студии. Каждая измеряется отдельно, и видно, какая несёт отпечаток: например
-барабаны 97%, а живая гитара 15%.
-
-Это диагностический прогон, он **не сохраняется** в историю и не создаёт версии:
-чтобы зафиксировать слой как версию, проанализируйте его обычным путём слева.
-
-Используется только lofcz. FST требует различимых долей, которых у большинства
-стемов нет, а на полном миксе он и так доступен в основном анализе.
-
-Разделять готовый микс сторонними инструментами для этого не стоит: разделение
-добавляет собственные артефакты и само поднимает score.
-""",
-    "doc.artifacts": """
-### Что слышно, а не что думает модель
-
-Эти метрики считаются напрямую из сигнала и не обращаются к детекторам. Они
-остаются осмысленными, когда модели расходятся или выходят за свой домен, и
-указывают на правки, которые реально слышны.
-
-Сами по себе числа не значат почти ничего — добавьте референсы (свои живые
-записи или коммерческие треки), и читайте свой трек рядом с ними. Метод
-измерения для всех файлов одинаковый.
-
-- **Атака** — типичный самый резкий подъём громкости за 20 мс. Размазанные
-  транзиенты его снижают.
-- **Rolloff 95%** — где заканчивается основная энергия спектра.
-- **Обрыв ВЧ** — самый крутой спад выше 4 кГц. Сильно отрицательное значение
-  означает жёсткую стену кодека или генератора; живой материал спадает плавно.
-- **Шумовой пол и его плоскость** — очень низкий и очень плоский пол означает
-  стерильный цифровой материал без комнаты и шума тракта.
-- **Корреляция низа и верха** — collapsed или неестественно широкая
-  стереокартина.
-
-⚠️ Сравнивайте подобное с подобным. **MP3 сам по себе даёт обрыв ВЧ**
-независимо от происхождения музыки, поэтому MP3 против WAV покажет разницу
-кодека, а не генератора. Так же не сравнивайте отдельный стем с полным миксом.
-""",
-    "doc.detector_data": """
-### Нативные измерения моделей
-
-Здесь показаны исходные preprocessing/model signals. Интерпретация вынесена вниз
-и не изменяет raw outputs.
-""",
-    "doc.comparison": """
-### Сравнение двух обработок одного исходника
-
-Выбирайте, например, исходный stem как **Версию A** и тот же stem после
-обработки как **Версию B**. Разница строится как `B − A`. Сравнение разных песен
-отражает главным образом различия музыкального материала и обычно не даёт
-полезного вывода.
-""",
+    "lead.detector_data": (
+        "Собственные preprocessing и выходы моделей, без изменений. Каждый "
+        "значок объясняет график под собой."
+    ),
+    "lead.timeline": (
+        "Где по треку виден отпечаток. Клик по кривой перематывает плеер."
+    ),
+    "lead.layers": (
+        "Измерение отдельных дорожек, из которых собран микс: видно, какая "
+        "несёт отпечаток."
+    ),
+    "lead.artifacts": (
+        "Считается из сигнала, без участия детекторов — поэтому добавьте "
+        "референсы и читайте свой трек рядом с ними."
+    ),
+    "lead.comparison": "Две обработки одного исходника, разница как `B − A`.",
+    "lead.midi": (
+        "Перевод аудио в ноты через muscriptor. Работает локально, на вашей "
+        "видеокарте."
+    ),
+    "lead.sunofix": (
+        "В плане: починка артефактов генерации, управляемая измерениями вкладки "
+        "**Артефакты**, а не слухом. Пока ничего не работает — замысел в "
+        "`docs/editing-roadmap.md`."
+    ),
+    # ---- moved method notes --------------------------------------------------
+    "disc.spectrum.reading.title": "Как читать спектрограмму",
+    "disc.spectrum.reading.measured": (
+        "Уровень по частотным полосам во времени, напрямую из аудио."
+    ),
+    "disc.spectrum.reading.reading": (
+        "Используйте её как измерение аудио, а не как самостоятельный "
+        "AI-классификатор. Сначала сопоставьте два detector score."
+    ),
+    "disc.spectrum.reading.limits": (
+        "Спектрограмма показывает, что с сигналом сделал кодек или генератор; "
+        "сама по себе она ничего не говорит о происхождении музыки."
+    ),
+    "disc.timeline.method.title": "Что такое значение окна и чем оно не является",
+    "disc.timeline.method.body": (
+        "Общий score не говорит, что чинить. Здесь fakeprint считается "
+        "скользящим окном, поэтому видно, какие участки тянут оценку вверх."
+        "\n\n"
+        "Модель обучалась на усреднении по всему треку, поэтому оконные "
+        "значения — **относительная карта внутри одного трека**, а не "
+        "калиброванная вероятность на секунду. Сравнивайте окна с другими "
+        "окнами того же трека; сравнение с глобальным score другого трека "
+        "бессмысленно. Чем короче окно, тем шумнее оценка."
+    ),
+    "disc.layers.what_to_load.title": "Что грузить и что вернётся",
+    "disc.layers.what_to_load.body": (
+        "Загрузите отдельные дорожки **до сведения** — те, из которых собран "
+        "трек в студии. Каждая измеряется отдельно, и видно, какая несёт "
+        "отпечаток: например барабаны 97%, а живая гитара 15%.\n\n"
+        "Это диагностический прогон. Он **не сохраняется** в историю и не "
+        "создаёт версии: чтобы зафиксировать слой как версию, проанализируйте "
+        "его обычным путём слева.\n\n"
+        "Используется только lofcz. FST требует различимых долей, которых у "
+        "большинства стемов нет, а на полном миксе он и так доступен в основном "
+        "анализе."
+    ),
+    "disc.layers.separation.title": "Не разделяйте для этого готовый микс",
+    "disc.layers.separation.body": (
+        "Инструмент разделения добавляет собственные артефакты и сам поднимает "
+        "score, так что измерять вы будете разделитель, а не материал. Берите "
+        "те дорожки, которые действительно записаны или сгенерированы."
+    ),
+    "disc.artifacts.metrics.title": "Что измеряет каждая колонка",
+    "disc.artifacts.metrics.body": """
+      <ul>
+        <li><strong>Атака</strong> — типичный самый резкий подъём громкости за
+        20 мс. Размазанные транзиенты его снижают.</li>
+        <li><strong>Rolloff 95%</strong> — где заканчивается основная энергия
+        спектра.</li>
+        <li><strong>Обрыв ВЧ</strong> — самый крутой спад выше 4 кГц. Сильно
+        отрицательное значение означает жёсткую стену кодека или генератора;
+        живой материал спадает плавно.</li>
+        <li><strong>Шумовой пол и его плоскость</strong> — очень низкий и очень
+        плоский пол означает стерильный цифровой материал без комнаты и шума
+        тракта.</li>
+        <li><strong>Корреляция низа и верха</strong> — схлопнутая или
+        неестественно широкая стереокартина.</li>
+      </ul>
+    """,
+    "disc.artifacts.compare.title": "Сравнивайте подобное с подобным",
+    "disc.artifacts.compare.body": (
+        "**MP3 сам по себе даёт обрыв ВЧ** независимо от происхождения музыки, "
+        "поэтому MP3 против WAV покажет кодек, а не генератор. По той же "
+        "причине не сравнивайте отдельный стем с полным миксом.\n\n"
+        "Сами по себе эти числа не значат почти ничего. Добавьте референсы — "
+        "свои живые записи или коммерческие треки — и читайте свой трек рядом с "
+        "ними. Метод измерения для всех файлов одинаковый."
+    ),
+    "disc.comparison.method.title": "Что делает сравнение полезным",
+    "disc.comparison.method.body": (
+        "Выбирайте, например, исходный stem как **Версию A** и тот же stem "
+        "после обработки как **Версию B**. Разница строится как `B − A`.\n\n"
+        "Сравнение разных песен отражает главным образом различия музыкального "
+        "материала и обычно не даёт полезного вывода."
+    ),
+    "disc.midi.stems.title": "Подавайте стемы, а не миксы",
+    "disc.midi.stems.body": (
+        "Полифоническая транскрипция плотного микса не решена, и разница между "
+        "басовым стемом и полным треком, из которого он взят, — это разница "
+        "между результатом, который стоит править, и тем, который стоит "
+        "удалить.\n\n"
+        "Ровно для этого кнопка на вкладке **Слои**: измерьте стемы, кликните "
+        "нужную строку, отправьте её сразу сюда."
+    ),
+    "disc.midi.reproducibility.title": "Что записывается с каждым файлом",
+    "disc.midi.reproducibility.body": (
+        "Декодирование жадное — без сэмплирования и температуры, — поэтому одно "
+        "и то же аудио с теми же настройками даёт тот же MIDI.\n\n"
+        "Каждый прогон пишет рядом с `.mid` файл JSON с чекпоинтом, параметрами "
+        "декодирования и версией muscriptor, чтобы старая транскрипция осталась "
+        "интерпретируемой после обновления. Файлы кладутся в `output/midi/`, а "
+        "не в кэш, который чистится раз в сутки."
+    ),
+    "disc.midi.setup.title": "Настройка",
+    # ---- the app's one long-form licence statement ---------------------------
+    "disc.licence.weights.title": "Лицензия на веса транскрипции",
+    "disc.licence.weights.body": (
+        "**Код** muscriptor под MIT, и эта обёртка тоже. **Веса модели — "
+        "CC BY-NC 4.0, только некоммерческое использование**, и карточка модели "
+        "добавляет условие сверху: выход нельзя использовать для незаконной "
+        "деятельности, явно включая транскрипцию музыки, прав на которую у вас "
+        "нет.\n\n"
+        "Если вы выкладываете то, что построено на этих транскрипциях, эту "
+        "границу оценивать вам. У каждого инструмента в этой мастерской свои "
+        "условия; они перечислены в README."
+    ),
+    # ---- MIDI guides ---------------------------------------------------------
+    # Авторская разметка, не пользовательский ввод: эти тела содержат списки и
+    # ссылки и вставляются без экранирования в disclosure_html.
+    "guide.midi.basics.title": "Как открыть MIDI в FL Studio",
+    "guide.midi.basics.body": """
+      <p>Два пути. Перетащить <code>.mid</code> из браузера на плейлист — самый
+      быстрый; <em>File &rarr; Import &rarr; MIDI file</em> даёт опции импорта,
+      включая отдельный канал на дорожку, а это то, что нужно, когда muscriptor
+      нашёл несколько инструментов.</p>
+      <ol>
+        <li><strong>Сначала выставьте темп проекта.</strong> В транскрипции
+        записан определённый темп; если проект с ним не согласен, всё ляжет мимо
+        сетки и будет выглядеть ошибкой транскрипции, ей не являясь.</li>
+        <li><strong>Не квантуйте сразу.</strong> Послушайте сырые ноты против
+        аудио. Квантайз плохой транскрипции прячет ошибки вместо того, чтобы их
+        показать.</li>
+        <li><strong>Первым делом почистите пиано-ролл.</strong> Обычный мусор —
+        короткие призрачные ноты и октавные дубли. Минута удаления экономит час
+        размышлений, почему партия звучит не так.</li>
+        <li><strong>Сохраните оригинал.</strong> Каждая транскрипция ложится в
+        <code>output/midi/</code>, рядом JSON с чекпоинтом и параметрами, так что
+        отредактированная версия никогда не станет единственной копией.</li>
+      </ol>
+      <p>Справочно:
+      <a href="https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/fformats_other_mid.htm"
+      target="_blank" rel="noopener">MIDI-файлы в мануале FL Studio</a> ·
+      <a href="https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/pianoroll.htm"
+      target="_blank" rel="noopener">пиано-ролл</a> ·
+      <a href="https://www.image-line.com/fl-studio-learning/" target="_blank"
+      rel="noopener">видеоуроки самой Image-Line</a>.</p>
+    """,
+    "guide.midi.drums.title": "Барабаны: MIDI в FPC и откуда брать брейки",
+    "guide.midi.drums.body": """
+      <p>Барабанный MIDI окупается сразу: замена сгенерированной установки на
+      живые сэмплы — ровно та подмена, которая снижает detector score по
+      правильной причине.</p>
+      <p><strong>FPC</strong> — пэд-сэмплер FL Studio и естественный адресат.
+      Загрузите пустой FPC, набросайте на пэды свои сэмплы, откройте
+      транскрибированный MIDI в его пиано-ролле и сведите клавиши пэдов с
+      пришедшими нотами. Клавиша запуска каждого пэда задаётся в Play
+      Key/Octave, так что маппинг правится на пэде, а не переносом всех нот.</p>
+      <p>Чего ждать от транскрипции: хэты выходят плотными и часто
+      переопределяются, кик и снейр обычно уверенные, призрачные снейры —
+      первое, что стоит проредить. Транскрибируйте барабанный стем отдельно, а не
+      полный микс: именно бас, залезающий в полосу кика, порождает фантомные
+      удары.</p>
+      <p>Источники самих сэмплов:
+      <a href="https://www.musicradar.com/tag/sampleradar" target="_blank"
+      rel="noopener">MusicRadar SampleRadar</a> — бесплатные паки, в том числе
+      много брейкбит-материала (условия смотрите у каждого пака) ·
+      <a href="https://splice.com/sounds/genres/drum-and-bass/packs"
+      target="_blank" rel="noopener">паки drum &amp; bass на Splice</a> по
+      подписке — там живёт большинство актуальных ваншотов и брейков.</p>
+      <p>Справочно:
+      <a href="https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/plugins/FPC.htm"
+      target="_blank" rel="noopener">FPC в мануале FL Studio</a>.</p>
+    """,
+    "guide.midi.acoustic.title": "Гитара, струнные, оркестр",
+    "guide.midi.acoustic.body": """
+      <p>Мелодическим партиям нужен сэмплер с живыми записями внутри: пресет
+      синтезатора скрипичную линию не продаст. Два бесплатных пути, покрывающих
+      почти всё:</p>
+      <ul>
+        <li><a href="https://splice.com/instrument" target="_blank"
+        rel="noopener">Splice INSTRUMENT</a> — бывшая библиотека Spitfire LABS,
+        теперь под Splice. VST3/AU, бесплатные пресеты со струнными, роялями и
+        прочим, платные паки сверху.</li>
+        <li><a href="https://www.plogue.com/products/sforzando.html"
+        target="_blank" rel="noopener">Plogue sforzando</a> — бесплатный
+        SFZ-плеер. Простой и некрасивый, но открывает огромный пласт бесплатных
+        SFZ-библиотек для оркестровых и народных инструментов, баян включая.</li>
+      </ul>
+      <p>Что транскрипция даст и чего не даст: высоту и тайминг — да.
+      Артикуляцию — нет: легато, стаккато, штрихи и глиссандо в MIDI не
+      попадают и вписываются руками, обычно через keyswitch или линию
+      экспрессии. Транскрибированная струнная партия звучит механически, пока это
+      не сделано; это работа, а не баг.</p>
+      <p>Гитара отдельно: она транскрибируется как ноты без информации о ладах и
+      струнах, поэтому аккордовые построения выходят в той октаве, которую выбрала
+      модель. Обычно быстрее отнестись к результату как к аккордовой сетке и
+      переголосовать её, чем воевать с полученными нотами.</p>
+    """,
+    "guide.midi.bass.title": "Бас и синты",
+    "guide.midi.bass.body": """
+      <p>Бас — самое ненадёжное место транскрипции, и стоит знать почему, прежде
+      чем винить модель: основной тон суб-баса ниже примерно 40 Гц часто уезжает
+      на октаву, а у сильно перегруженных и reese-басов столько гармоник, что
+      модель слышит гармонику как ноту.</p>
+      <p>Практический порядок: транскрибировать басовый стем отдельно, первым
+      делом сверить октаву с аудио и быть готовым править октаву целыми фразами,
+      а не отдельными нотами.</p>
+      <p>Для воспроизведения годится любой субтрактивный или wavetable-синт. У
+      <a href="https://vital.audio/" target="_blank" rel="noopener">Vital</a>
+      есть бесплатный тариф с полным синтом и урезанной библиотекой пресетов, а
+      родные Sytrus и 3xOsc уже стоят и на чистый саб способны вполне.</p>
+      <p>Важнее выбора синта другое: транскрибированная басовая линия сохраняет
+      длительности оригинала, а для щипкового или гейтованного баса они обычно
+      слишком длинные. Укоротить ноты под грув даёт для ощущения больше, чем
+      любой пресет.</p>
+    """,
 }
 
 CATALOGUE: Final[dict[str, dict[str, str]]] = {"en": _EN, "ru": _RU}

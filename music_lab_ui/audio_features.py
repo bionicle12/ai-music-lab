@@ -52,21 +52,23 @@ def _waveform_envelope(mono: np.ndarray, duration: float) -> tuple[np.ndarray, n
     )
 
 
-def extract_audio_features(path: Path) -> AudioFeatures:
-    resolved = path.resolve()
-    audio, sample_rate = sf.read(resolved, always_2d=True, dtype="float32")
+def _read(path: Path) -> tuple[np.ndarray, int, np.ndarray, float]:
+    audio, sample_rate = sf.read(path, always_2d=True, dtype="float32")
     if audio.shape[0] == 0:
-        raise ValueError(f"{resolved.name} contains no audio frames")
+        raise ValueError(f"{path.name} contains no audio frames")
+    duration = audio.shape[0] / sample_rate
+    return audio, int(sample_rate), audio.mean(axis=1, dtype=np.float32), duration
 
+
+def _describe(
+    path: Path, audio: np.ndarray, sample_rate: int, duration: float
+) -> tuple[AudioMetadata, AudioMetrics]:
     frames, channels = audio.shape
-    duration = frames / sample_rate
-    mono = audio.mean(axis=1, dtype=np.float32)
 
-    peak = float(np.max(np.abs(audio)))
-    rms = float(np.sqrt(np.mean(np.square(audio), dtype=np.float64)))
-    peak_dbfs = float(_db(peak))
-    rms_dbfs = float(_db(rms))
-    crest_factor_db = peak_dbfs - rms_dbfs
+    peak_dbfs = float(_db(float(np.max(np.abs(audio)))))
+    rms_dbfs = float(
+        _db(float(np.sqrt(np.mean(np.square(audio), dtype=np.float64))))
+    )
 
     stereo_correlation: float | None = None
     mid_side_ratio_db: float | None = None
@@ -82,6 +84,61 @@ def extract_audio_features(path: Path) -> AudioFeatures:
         mid_side_ratio_db = float(
             20.0 * np.log10(max(mid_rms, EPSILON) / max(side_rms, EPSILON))
         )
+
+    metadata = AudioMetadata(
+        filename=path.name,
+        suffix=path.suffix.lower(),
+        size_bytes=path.stat().st_size,
+        sample_rate=int(sample_rate),
+        channels=int(channels),
+        frames=int(frames),
+        duration_seconds=float(duration),
+        sha256=_sha256(path),
+    )
+    metrics = AudioMetrics(
+        peak_dbfs=peak_dbfs,
+        rms_dbfs=rms_dbfs,
+        crest_factor_db=float(peak_dbfs - rms_dbfs),
+        stereo_correlation=stereo_correlation,
+        mid_side_ratio_db=mid_side_ratio_db,
+    )
+    return metadata, metrics
+
+
+def extract_preview_features(path: Path) -> AudioFeatures:
+    """What the sidebar can show the moment a file is dropped on the page.
+
+    The full extraction below resamples some twenty thousand spectrogram
+    columns one at a time — the right price for an analysis run and the wrong
+    one for a preview. The whole-track strip and the file card need the
+    envelope, the identity and the three levels, none of which involve the
+    transform, so this computes exactly those.
+
+    The spectral fields come back empty rather than wrong. ``analysis_settings``
+    stays empty too, which is how a caller can tell a preview from the real
+    thing.
+    """
+    resolved = path.resolve()
+    audio, sample_rate, mono, duration = _read(resolved)
+    metadata, metrics = _describe(resolved, audio, sample_rate, duration)
+    time_axis, waveform_rms_db = _waveform_envelope(mono, duration)
+    empty = np.zeros(0, dtype=np.float32)
+    return AudioFeatures(
+        metadata=metadata,
+        metrics=metrics,
+        time_axis=time_axis,
+        frequency_axis=empty,
+        spectrogram_db=np.zeros((0, 0), dtype=np.float32),
+        waveform_rms_db=waveform_rms_db,
+        average_spectrum_db=empty,
+    )
+
+
+def extract_audio_features(path: Path) -> AudioFeatures:
+    resolved = path.resolve()
+    audio, sample_rate, mono, duration = _read(resolved)
+    metadata, metrics = _describe(resolved, audio, sample_rate, duration)
+    frames = audio.shape[0]
 
     nperseg = min(FFT_SIZE, frames)
     noverlap = min(int(nperseg * 0.875), nperseg - 1)
@@ -125,23 +182,6 @@ def extract_audio_features(path: Path) -> AudioFeatures:
     ).astype(np.float32)
     time_axis, waveform_rms_db = _waveform_envelope(mono, duration)
 
-    metadata = AudioMetadata(
-        filename=resolved.name,
-        suffix=resolved.suffix.lower(),
-        size_bytes=resolved.stat().st_size,
-        sample_rate=int(sample_rate),
-        channels=int(channels),
-        frames=int(frames),
-        duration_seconds=float(duration),
-        sha256=_sha256(resolved),
-    )
-    metrics = AudioMetrics(
-        peak_dbfs=peak_dbfs,
-        rms_dbfs=rms_dbfs,
-        crest_factor_db=float(crest_factor_db),
-        stereo_correlation=stereo_correlation,
-        mid_side_ratio_db=mid_side_ratio_db,
-    )
     return AudioFeatures(
         metadata=metadata,
         metrics=metrics,

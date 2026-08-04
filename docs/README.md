@@ -23,6 +23,13 @@ Start with [Getting started](getting-started.md) if nothing is installed yet, an
 | [Artifact metrics](artifact-metrics.md) | Attack, rolloff, noise floor and correlation, measured without a model |
 | [A/B comparison](comparison.md) | Pinning version A and measuring what an edit actually changed |
 | [Detector data](detector-data.md) | Native telemetry from lofcz and FST, and how to read it |
+| [Audio → MIDI](midi.md) | Transcribing stems into notes with muscriptor, and the setup it needs |
+
+## What comes next
+
+| Page | What it covers |
+| --- | --- |
+| [Editing — roadmap](editing-roadmap.md) | 🚧 SunoFix: planned, not implemented. MIDI is done — see above |
 
 ## Beyond the UI
 

@@ -5,7 +5,15 @@ from collections.abc import Sequence
 import numpy as np
 import plotly.graph_objects as go
 
-from .plots import AMBER, CYAN, DIFFERENCE_SCALE, MUTED, _base_layout, empty_figure
+from .plots import (
+    AMBER,
+    CYAN,
+    DIFFERENCE_SCALE,
+    MUTED,
+    VIOLET,
+    _base_layout,
+    empty_figure,
+)
 from .contracts import LayerResult
 from .i18n import Translator, get_translator
 from .telemetry import DetectorTelemetry
@@ -208,10 +216,58 @@ def timeline_figure(
         annotation_position="top left",
     )
 
-    # FST's gate is a raw model signal, not a per-segment AI probability, so it
-    # gets its own axis and is never relabelled as one.
+    _base_layout(
+        figure,
+        translate("telemetry.timeline.title"),
+        height=360,
+        time_axis=True,
+    )
+    figure.update_xaxes(title=translate("plot.axis.time"))
+    # Scoped to the left axis on purpose. `update_yaxes` without a selector also
+    # rewrites the FST axis added below, which squashes its 0–1 signals onto a
+    # 0–100 scale where they flatline along the bottom and the chart looks as if
+    # FST found nothing.
+    figure.update_layout(
+        yaxis={
+            "title": {"text": translate("telemetry.timeline.axis")},
+            "range": [0, 100],
+        }
+    )
+
+    # FST's per-segment signals are raw model outputs on their own 0–1 scale, not
+    # per-second AI probabilities, so they share a second axis and are never
+    # relabelled as one.
     if fst is not None and "segment_start_seconds" in fst.arrays:
         segment_starts = np.asarray(fst.arrays["segment_start_seconds"], dtype=float)
+        added = False
+
+        classes = np.asarray(
+            fst.arrays.get("stage1_class_probabilities", []),
+            dtype=float,
+        )
+        if classes.ndim == 2 and classes.shape[0] == segment_starts.size:
+            for index, colour in zip(range(classes.shape[1]), (CYAN, VIOLET)):
+                figure.add_trace(
+                    go.Scatter(
+                        x=segment_starts,
+                        y=classes[:, index],
+                        mode="lines+markers",
+                        name=translate(
+                            "telemetry.timeline.fst_class",
+                            index=index,
+                        ),
+                        yaxis="y2",
+                        line={"color": colour, "width": 1.4},
+                        marker={"size": 5},
+                        hovertemplate=(
+                            f"{translate('telemetry.timeline.gate_hover')}"
+                            f"<br>Stage-1 class {index}: "
+                            "%{y:.3f}<extra></extra>"
+                        ),
+                    )
+                )
+            added = True
+
         gate = np.asarray(fst.arrays.get("fusion_content_gate", []), dtype=float)
         if gate.size and gate.size == segment_starts.size:
             figure.add_trace(
@@ -221,7 +277,7 @@ def timeline_figure(
                     mode="lines+markers",
                     name=translate("telemetry.timeline.gate"),
                     yaxis="y2",
-                    line={"color": CYAN, "width": 1.4, "dash": "dot"},
+                    line={"color": MUTED, "width": 1.4, "dash": "dot"},
                     marker={"size": 6, "symbol": "diamond"},
                     hovertemplate=(
                         f"{translate('telemetry.timeline.gate_hover')}"
@@ -229,24 +285,21 @@ def timeline_figure(
                     ),
                 )
             )
+            added = True
+
+        if added:
             figure.update_layout(
                 yaxis2={
-                    "title": "FST fusion gate",
+                    "title": {"text": translate("telemetry.timeline.fst_axis")},
                     "overlaying": "y",
                     "side": "right",
                     "showgrid": False,
                     "color": CYAN,
+                    # Fixed, so the two axes stay comparable between runs and a
+                    # near-constant gate does not autoscale into fake drama.
+                    "range": [0, 1],
                 }
             )
-
-    _base_layout(
-        figure,
-        translate("telemetry.timeline.title"),
-        height=360,
-        time_axis=True,
-    )
-    figure.update_xaxes(title=translate("plot.axis.time"))
-    figure.update_yaxes(title=translate("telemetry.timeline.axis"), range=[0, 100])
     return figure
 
 

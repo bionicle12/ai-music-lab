@@ -48,9 +48,32 @@ FST also pulls MERT embedding weights from Hugging Face on first run. They land 
 Hugging Face cache rather than in `models/`, so the first FST analysis after a fresh install
 takes noticeably longer than later ones.
 
+## Transcription weights (muscriptor)
+
+Not in the table above, and deliberately handled differently. They are **gated**: Hugging Face
+serves them only to an account that has accepted CC BY-NC 4.0, so there is no anonymous URL to
+publish, and the app downloads them from the settings panel rather than by hand.
+
+| Variant | Parameters | Download | Repository |
+| --- | ---: | ---: | --- |
+| `small` | 103M | ~0.4 GB | [MuScriptor/muscriptor-small](https://huggingface.co/MuScriptor/muscriptor-small) |
+| `medium` | 307M | ~1.2 GB | [MuScriptor/muscriptor-medium](https://huggingface.co/MuScriptor/muscriptor-medium) |
+| `large` | 1.4B | ~5.6 GB | [MuScriptor/muscriptor-large](https://huggingface.co/MuScriptor/muscriptor-large) |
+
+There is no SHA-256 table here because there is nothing to hand-verify: `huggingface_hub`
+validates what it downloads, and the adapter then re-resolves the cache with `HF_HUB_OFFLINE=1`
+so a green checkbox means the weights really load, not merely that a file appeared.
+
+They land in `models/muscriptor-cache/` — the app points `HF_HOME` there so gigabytes of
+checkpoints stay off the system drive. Setup and token handling: [Audio → MIDI](midi.md).
+
 ## Licensing
 
 The model weights are **not** covered by this repository's MIT license. They keep the terms set
 by their own publishers, and this project neither redistributes nor modifies them — it only
 loads files you downloaded yourself. Check the upstream terms before using any output
 commercially.
+
+The muscriptor weights make that concrete: **CC BY-NC 4.0, non-commercial use only**, with a
+further condition in the model card against using the output for illegal or unauthorised
+activity, transcribing music you hold no rights to included.

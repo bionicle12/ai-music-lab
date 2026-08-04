@@ -59,14 +59,15 @@ Windows with an NVIDIA GPU, [Conda](https://docs.conda.io/projects/miniconda/), 
 
 ### How the pieces fit together
 
-This repository contains no detector code. Both detectors are cloned **next to** it and left
-completely untouched:
+This repository contains no detector or transcription code. Every upstream is cloned **next to**
+it and left completely untouched:
 
 ```text
 <parent>/
 ├── ai-music-lab/            ← this repository: UI, adapters, history
 ├── ai-music-detector/       ← lofcz upstream, pinned at 6ba389e
-└── FST-AI-Music-Detection/  ← FST upstream, pinned at b564f8b
+├── FST-AI-Music-Detection/  ← FST upstream, pinned at b564f8b
+└── muscriptor/              ← audio → MIDI, tracks main (optional)
 ```
 
 Keeping them as separate, unmodified clones is deliberate. A measurement is only reproducible
@@ -164,13 +165,23 @@ project came about, in **[A few honest words](docs/about.md)**.
 
 ## Built on
 
-This repository is a wrapper. It does not modify, vendor or redistribute either detector —
-both are cloned separately and pinned to a known commit.
+This repository is a wrapper. It does not modify, vendor or redistribute any upstream — each is
+cloned separately and recorded at a known commit.
 
-| Upstream | Pinned commit | License |
+| Upstream | Commit | License |
 | --- | --- | --- |
 | [lofcz/ai-music-detector](https://github.com/lofcz/ai-music-detector) | `6ba389e` | MIT |
 | [Mippia/FST-AI-Music-Detection](https://github.com/Mippia/FST-AI-Music-Detection) | `b564f8b` | none declared upstream |
+| [muscriptor/muscriptor](https://github.com/muscriptor/muscriptor) | `e2bd0fc` | MIT code · **weights CC BY-NC 4.0** |
+
+The two detector commits are pins — a score is only comparable across runs if the code behind it
+did not move. muscriptor's is the version this wrapper was verified against; it tracks `main` and
+can be fast-forwarded from the settings panel.
+
+**The muscriptor weights are non-commercial.** The code is MIT, the checkpoints are not, and the
+model card adds a condition on top: the output must not be used for illegal or unauthorised
+activity, transcribing music you hold no rights to included. See
+[Audio → MIDI](docs/midi.md).
 
 ## Platform
 
@@ -181,7 +192,14 @@ anywhere.
 
 ## License
 
-[MIT](LICENSE) © 2026 Miroslav. The wrapper is MIT; the upstream detectors and their model
-weights keep their own terms.
+[MIT](LICENSE) © 2026 Miroslav. The wrapper is MIT.
+
+**Every other product this workspace touches carries its own terms — read them, and do not
+break the law with what you make here.** The upstream detectors, the transcription weights, the
+vendored fonts and any sample pack or plugin you bring in are all licensed by their own authors,
+not by this repository. The one that will catch you out first is muscriptor: its code is MIT but
+its **weights are CC BY-NC 4.0, non-commercial only**, with a further condition against
+transcribing music you hold no rights to. The interface states that where it matters; the full
+list is in the table above and in [docs/models.md](docs/models.md).
 
 <p align="center">from Russia with ❤️</p>

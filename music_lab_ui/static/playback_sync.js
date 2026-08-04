@@ -22,21 +22,45 @@
   var lastDrawn = -1;
   var lastFrameAt = 0;
 
-  function findAudio() {
-    if (audioElement && audioElement.isConnected && audioElement.src) {
-      return audioElement;
-    }
+  function allAudio() {
+    var found = [];
+    // The wavesurfer player keeps its real <audio> in a shadow root, so a plain
+    // document query finds only the unused fallback element.
     var hosts = document.querySelectorAll("*");
     for (var i = 0; i < hosts.length; i += 1) {
       var root = hosts[i].shadowRoot;
       if (!root) continue;
       var candidate = root.querySelector("audio");
-      if (candidate && candidate.src) {
-        audioElement = candidate;
-        return candidate;
+      if (candidate && candidate.src) found.push(candidate);
+    }
+    // …but a native player lives in the light DOM, and a shadow-only sweep
+    // would silently drop chart-click seeking for it.
+    var plain = document.querySelectorAll("audio");
+    for (var j = 0; j < plain.length; j += 1) {
+      if (plain[j].src && found.indexOf(plain[j]) === -1) found.push(plain[j]);
+    }
+    return found;
+  }
+
+  /*
+   * There is more than one player on the page — the analysed track and the MIDI
+   * preview — so "the first audio element with a src" is the wrong answer.
+   * `audioElement` is whichever one last started playing; a still-playing
+   * element always wins over that, in case a stale handle survived a re-render.
+   */
+  function findAudio() {
+    var players = allAudio();
+    for (var i = 0; i < players.length; i += 1) {
+      if (!players[i].paused) {
+        audioElement = players[i];
+        return players[i];
       }
     }
-    return null;
+    if (audioElement && audioElement.isConnected && audioElement.src) {
+      return audioElement;
+    }
+    audioElement = players.length ? players[0] : null;
+    return audioElement;
   }
 
   function timeCharts() {
@@ -157,22 +181,33 @@
     });
   }
 
-  function bindAudio() {
-    var audio = findAudio();
-    if (!audio || audio._aiLabBound) return;
+  function bind(audio) {
+    if (audio._aiLabBound) return;
     audio._aiLabBound = true;
-    audio.addEventListener("play", startLoop);
-    audio.addEventListener("playing", startLoop);
+    function claim() {
+      // Whoever starts playing becomes the element the playhead follows.
+      audioElement = audio;
+      startLoop();
+    }
+    audio.addEventListener("play", claim);
+    audio.addEventListener("playing", claim);
     audio.addEventListener("seeked", function () {
+      audioElement = audio;
       lastDrawn = -1;
       drawPlayhead(audio.currentTime);
     });
     // Fallback path: fires ~4x/sec and keeps the playhead alive even if the
     // animation loop never started.
     audio.addEventListener("timeupdate", function () {
+      if (audioElement && audioElement !== audio && !audioElement.paused) return;
       drawPlayhead(audio.currentTime);
-      if (!audio.paused) startLoop();
+      if (!audio.paused) claim();
     });
+  }
+
+  function bindAudio() {
+    var players = allAudio();
+    for (var i = 0; i < players.length; i += 1) bind(players[i]);
   }
 
   function refresh() {

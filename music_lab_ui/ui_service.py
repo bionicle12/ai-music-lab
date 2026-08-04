@@ -1,18 +1,27 @@
 from __future__ import annotations
 
+import datetime as dt
+import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
+from . import muscriptor as muscriptor_runner
+from . import readiness as readiness_module
+from . import repositories
 from .artifact_metrics import ArtifactMetrics, measure_artifacts
-from .audio_features import extract_audio_features
+from .audio_features import extract_audio_features, extract_preview_features
 from .comparison import FeatureComparison, compare_features
 from .config import LabPaths, default_paths
 from .contracts import AnalysisRun, AudioFeatures, DetectorResult, LayerResult
 from .detectors import ProgressCallback, run_lofcz, run_lofcz_timeline, run_selected
 from .history import HistoryStore
 from .i18n import Translator, get_translator
+from .settings import LabSettings, SettingsStore, resolve_token
 from .telemetry import DetectorTelemetry, validate_telemetry
+
+SUPPORTED_SUFFIXES = frozenset({".wav", ".flac", ".mp3"})
 
 FeatureExtractor = Callable[[Path], AudioFeatures]
 DetectorRunner = Callable[
@@ -49,10 +58,18 @@ class AnalysisService:
         paths: LabPaths | None = None,
         history: HistoryStore | None = None,
         feature_extractor: FeatureExtractor = extract_audio_features,
+        preview_extractor: FeatureExtractor = extract_preview_features,
         detector_runner: DetectorRunner = run_selected,
         timeline_runner: TimelineRunner = run_lofcz_timeline,
         layer_runner: LayerRunner = run_lofcz,
         artifact_measurer: ArtifactMeasurer = measure_artifacts,
+        settings_store: SettingsStore | None = None,
+        midi_runner: Callable[..., Iterator[Any]] = muscriptor_runner.transcribe,
+        weights_runner: Callable[..., Iterator[Any]] = (
+            muscriptor_runner.download_weights
+        ),
+        probe_runner: Callable[..., dict[str, Any]] = muscriptor_runner.probe,
+        repository_reader: Callable[..., tuple] = repositories.all_statuses,
     ) -> None:
         self.paths = paths or default_paths()
         self.history = history or HistoryStore(
@@ -60,10 +77,40 @@ class AnalysisService:
             self.paths.runs_dir,
         )
         self.feature_extractor = feature_extractor
+        self.preview_extractor = preview_extractor
         self.detector_runner = detector_runner
         self.timeline_runner = timeline_runner
         self.layer_runner = layer_runner
         self.artifact_measurer = artifact_measurer
+        self.settings_store = settings_store or SettingsStore(self.paths.settings_path)
+        self.midi_runner = midi_runner
+        self.weights_runner = weights_runner
+        self.probe_runner = probe_runner
+        self.repository_reader = repository_reader
+
+    def _audio_source(self, audio_path: str, translate: Translator) -> Path:
+        source = Path(audio_path).resolve()
+        if source.suffix.lower() not in SUPPORTED_SUFFIXES:
+            raise ValueError(translate("error.unsupported_format"))
+        if not source.is_file():
+            raise ValueError(translate("error.audio_missing", path=source))
+        return source
+
+    def preview(
+        self,
+        audio_path: str | None,
+        t: Translator | None = None,
+    ) -> AudioFeatures | None:
+        """Read a dropped file well enough to draw it, before anything is run.
+
+        The sidebar's whole-track strip is the counterpart to the player above
+        it, and a player with nothing beside it reads as a broken page rather
+        than as one waiting for a button. This fills both from the same cheap
+        pass; the analysis run recomputes properly and overwrites.
+        """
+        if not audio_path:
+            return None
+        return self.preview_extractor(self._audio_source(audio_path, t or get_translator()))
 
     def analyze(
         self,
@@ -80,11 +127,7 @@ class AnalysisService:
         if not selected:
             raise ValueError(translate("error.no_detector"))
 
-        source = Path(audio_path).resolve()
-        if source.suffix.lower() not in {".wav", ".flac", ".mp3"}:
-            raise ValueError(translate("error.unsupported_format"))
-        if not source.is_file():
-            raise ValueError(translate("error.audio_missing", path=source))
+        source = self._audio_source(audio_path, translate)
 
         if progress:
             progress(translate("progress.features"), 0.02)
@@ -160,6 +203,7 @@ class AnalysisService:
                         mean_residue_db=None,
                         duration_seconds=None,
                         error=translate("error.unsupported_format"),
+                        path=str(source),
                     )
                 )
                 continue
@@ -178,6 +222,7 @@ class AnalysisService:
                     ),
                     duration_seconds=scalars.get("analyzed_duration_seconds"),
                     error=outcome.error,
+                    path=str(source),
                 )
             )
         if progress:
@@ -294,6 +339,83 @@ class AnalysisService:
             return pinned.run_id, value_b
         value_a = runs[1].run_id if len(runs) > 1 else None
         return value_a, runs[0].run_id
+
+    # ---- settings, upstreams and MIDI transcription ----------------------
+
+    def settings(self) -> LabSettings:
+        return self.settings_store.load()
+
+    def save_settings(self, settings: LabSettings) -> LabSettings:
+        return self.settings_store.save(settings)
+
+    def readiness(self, *, probe: bool = False) -> readiness_module.ReadinessReport:
+        """Probing spawns a process, so it is opt-in and never happens on render."""
+        settings = self.settings()
+        token, _ = resolve_token(settings)
+        runner = None
+        if probe:
+            runner = lambda: self.probe_runner(self.paths, token)  # noqa: E731
+        return readiness_module.evaluate(self.paths, settings, probe=runner)
+
+    def repository_statuses(self, *, fetch: bool = True) -> tuple:
+        return self.repository_reader(self.paths, fetch=fetch)
+
+    def pull_repository(self, key: str) -> repositories.PullOutcome:
+        repo = repositories.REPOSITORIES_BY_KEY.get(key)
+        if repo is None:
+            raise ValueError(f"unknown repository: {key}")
+        return repositories.pull(repo, self.paths)
+
+    def midi_destination(self, source: Path, now: dt.datetime | None = None) -> Path:
+        """A stable place on disk, because a transcription is worth keeping.
+
+        Gradio's own cache is wiped daily; a file the user is going to open in a
+        DAW should not evaporate overnight.
+        """
+        stamp = (now or dt.datetime.now()).strftime("%Y%m%dT%H%M%S")
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "-", source.stem).strip("-") or "stem"
+        return self.paths.midi_dir / f"{stamp}-{safe}.mid"
+
+    def download_weights(self, size: str) -> Iterator[Any]:
+        token, _ = resolve_token(self.settings())
+        return self.weights_runner(self.paths, token, size)
+
+    def transcribe_to_midi(
+        self,
+        audio_path: str | Path | None,
+        *,
+        size: str | None = None,
+        instruments: str | list[str] = "",
+        device: str | None = None,
+        t: Translator | None = None,
+    ) -> tuple[Path, Iterator[Any]]:
+        """Return the destination and the event stream; the caller drains it."""
+        translate = t or get_translator()
+        if not audio_path:
+            raise ValueError(translate("error.no_midi_source"))
+        source = Path(audio_path).resolve()
+        if source.suffix.lower() not in {".wav", ".flac", ".mp3"}:
+            raise ValueError(translate("error.unsupported_format"))
+        if not source.is_file():
+            raise ValueError(translate("error.audio_missing", path=source))
+
+        settings = self.settings()
+        token, _ = resolve_token(settings)
+        destination = self.midi_destination(source)
+        stream = self.midi_runner(
+            self.paths,
+            token,
+            source,
+            destination,
+            size=size or settings.muscriptor_model,
+            device=device or settings.midi_device,
+            instruments=(
+                ", ".join(instruments)
+                if isinstance(instruments, list)
+                else instruments
+            ),
+        )
+        return destination, stream
 
     def compare_runs(
         self,

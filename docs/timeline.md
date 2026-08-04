@@ -17,9 +17,14 @@ No new run is created. The map is stored as telemetry belonging to the existing 
 `data/runs/<run_id>/telemetry/lofcz-timeline/`, which means you can also build a map for an old
 run without disturbing its history entry. Clicking the curve seeks the player to that moment.
 
-If the run also has FST telemetry, its `fusion gate` is overlaid on a separate right-hand axis.
-That is a raw model signal, not a per-segment probability of "AI", and it is deliberately not
-renamed: upstream does not publish a reliable mapping from Stage-1 classes to `Real`/`Fake`.
+If the run also has FST telemetry, its per-segment signals are overlaid on a separate right-hand
+axis with its own fixed `0–1` scale: both Stage-1 class values and the `fusion gate`. These are
+raw model outputs, not per-segment probabilities of "AI", and they are deliberately not renamed:
+upstream does not publish a reliable mapping from Stage-1 classes to `Real`/`Fake`.
+
+The separate axis is the whole point. `lofcz` is drawn in percent on the left and FST in `0–1`
+on the right; put both on one scale and FST lies flat along the bottom of the chart, which reads
+as "FST found nothing" even on a track it scored at 98%.
 
 ## From the command line
 
