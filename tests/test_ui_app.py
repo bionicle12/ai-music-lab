@@ -276,6 +276,37 @@ def test_the_settings_dialog_closes_without_a_python_round_trip_of_its_own() -> 
     assert "getClientRects" in script
 
 
+def test_a_badge_popover_is_pinned_to_the_window_rather_than_to_its_card() -> None:
+    """The caveat badge sits at the right edge of a 305px detector card and its
+    popover is 560px wide, so anchoring it to the badge put it 443px past the
+    window edge — and the card's own `overflow: hidden` clipped what was left.
+    Fixed positioning escapes the clip; the coordinates have to be measured."""
+    script = settings_modal_head()
+    css = (
+        Path(__file__).parents[1] / "music_lab_ui" / "styles.css"
+    ).read_text(encoding="utf-8")
+
+    block = css.split(".lab-disclosure.layout-badge.is-placed")[1].split("}")[0]
+    assert "position: fixed" in block
+    # `toggle` does not bubble and Gradio re-renders the markup on every run, so
+    # a capture-phase document listener is the only stable place to catch it.
+    assert 'document.addEventListener(\n    "toggle",' in script
+    assert "is-placed" in script
+    assert "getBoundingClientRect" in script
+    # Reopening after the window changed must not inherit the last clamp.
+    assert 'body.style.maxHeight = ""' in script
+
+
+def test_an_open_popover_keeps_up_with_the_window() -> None:
+    """It is pinned to viewport coordinates, so anything that moves the badge
+    under it — a resize, a scroll in any of the interface's inner scrollers —
+    leaves it pointing at nothing until it is measured again."""
+    script = settings_modal_head()
+
+    assert 'document.addEventListener("scroll", placeOpen, true)' in script
+    assert 'window.addEventListener("resize", placeOpen)' in script
+
+
 def test_the_playhead_follows_whichever_player_is_actually_playing() -> None:
     """Two players exist now — the analysed track and the MIDI preview."""
     script = playback_sync_head()

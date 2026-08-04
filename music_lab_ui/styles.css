@@ -146,12 +146,29 @@ pre code,
   border-radius: 9px;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
   inset-inline-start: 0;
+  overflow-y: auto;
+  /* A clamped body scrolls; without this the page scrolls once it bottoms out,
+     which reads as the popover dragging the chart behind it. */
+  overscroll-behavior: contain;
   padding: 14px 16px;
   position: absolute;
   top: calc(100% + 6px);
-  width: min(560px, 70vw);
+  /* `100vw` counts the scrollbar, so the gutter is subtracted twice over — the
+     term only decides anything on windows narrower than the popover anyway. */
+  width: min(560px, calc(100vw - 40px));
   /* Plotly's modebar sits at 1001; below that the popover opens underneath it. */
   z-index: 1100;
+}
+
+/* Positioned by static/settings_modal.js, which writes `left`/`top` inline and
+   adds this class in the same step. Fixed rather than absolute because the box
+   has to escape two `overflow: hidden` ancestors — the detector card it lives
+   in and Gradio's own container. The absolute rule above stays as the fallback:
+   it is where the popover belongs whenever there is room, and the placer only
+   ever pulls it further inside the window. */
+.lab-disclosure.layout-badge.is-placed > .lab-disclosure-body {
+  inset-inline-start: auto;
+  position: fixed;
 }
 
 .lab-disclosure.layout-badge > .lab-disclosure-body h4 {
