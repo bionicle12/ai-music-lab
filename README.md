@@ -7,10 +7,10 @@
 
 <p align="center">
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-23b7e5?style=flat-square">
-  <img alt="Platform Windows" src="https://img.shields.io/badge/platform-Windows-91a3b3?style=flat-square">
+  <img alt="Platform Windows, macOS planned" src="https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20planned-91a3b3?style=flat-square">
   <img alt="Python 3.11" src="https://img.shields.io/badge/python-3.11-4bd19b?style=flat-square">
   <img alt="CUDA 12.8" src="https://img.shields.io/badge/CUDA-12.8-4bd19b?style=flat-square">
-  <img alt="Tests 93 passing" src="https://img.shields.io/badge/tests-93%20passing-4bd19b?style=flat-square">
+  <img alt="Tests 356 passing" src="https://img.shields.io/badge/tests-356%20passing-4bd19b?style=flat-square">
 </p>
 
 You finished a track, and something about it still sounds *generated* — but a single
@@ -52,6 +52,43 @@ by **layer** (drums 97%, live guitar 15%) and by **time window** tells you what 
 first. The **artifact metrics** — attack sharpness, 95% rolloff, high-frequency slope, noise
 floor, channel correlation — are computed straight from the signal with no model involved,
 so they keep working when a detector goes outside its training domain.
+
+## What it costs to run
+
+Every figure below was measured on the machine this was built on — Windows, RTX 4090 (24 GB),
+CUDA 12.8 — by sampling total GPU memory while one adapter ran alone. The test file is a 3:26
+stereo track at 44.1 kHz.
+
+| Stage | GPU memory | Time | Grows with track length? |
+| --- | ---: | ---: | --- |
+| Interface, charts, artifact metrics | none — CPU only | seconds | time only |
+| lofcz | 0.5 GB | 8 s | barely |
+| FST | **16 GB** | 25 s | **neither** |
+| muscriptor `large` | 11 GB | 50 s per 30 s of audio | time only |
+| muscriptor `medium` / `small` | not measured | — | — |
+
+Two of those rows need explaining, because both are counter-intuitive.
+
+**FST sets the floor, and it does not care how long your track is.** It always runs 48
+ten-second segments: a short file is padded up to 48 rather than run as fewer. A 32-second file
+and an eight-minute file cost the same 16 GB — measured, not assumed. That is how the upstream
+batches, not a knob this wrapper can turn. The practical consequence: **a card below 24 GB runs
+everything here except FST**, and 12 GB is a perfectly good machine for lofcz, the artifact
+metrics, the timeline map and MIDI export.
+
+**muscriptor spends length on time, not on memory.** It transcribes in five-second chunks, so a
+three-minute track is around forty of them — expect minutes, not seconds. `large` is 1.4B
+parameters in fp32. `medium` and `small` exist precisely for smaller cards, and their downloads
+are 1.2 GB and 0.4 GB against 5.6 GB, but I have only measured `large` and will not publish a
+number I did not take.
+
+Disk: ~1.4 GB for the two detector checkpoints, ~0.6 GB for the MERT embeddings FST fetches on
+its first run, and 0.4–5.6 GB for whichever transcription weights you download. The transcription
+cache is redirected into `models/muscriptor-cache/` so gigabytes do not land on the system drive.
+
+Host RAM is not the constraint on Windows — the interface itself sits around 0.3 GB and the
+checkpoints live on the GPU. It becomes the constraint on Apple Silicon, where the two are one
+pool; see [Platform](#platform).
 
 ## Quick start
 
@@ -139,9 +176,37 @@ smoke tests, is in **[Getting started](docs/getting-started.md)**.
 | [Artifact metrics](docs/artifact-metrics.md) | Model-free measurements straight from the signal |
 | [A/B comparison](docs/comparison.md) | Pinning version A and measuring what an edit changed |
 | [Detector data](docs/detector-data.md) | Native telemetry from lofcz and FST |
+| [Audio → MIDI](docs/midi.md) | Transcription setup, the token, the weights and their licence |
+| [Editing roadmap](docs/editing-roadmap.md) | What repairing a generated stem would have to do |
 | [Command line](docs/cli.md) | Running the adapters without the UI, smoke tests |
 | [Limitations](docs/limitations.md) | What the numbers do and do not mean — read this one |
 | [A few honest words](docs/about.md) | Why this exists, and what it is not for |
+
+## Roadmap
+
+The lab can measure a track and now get MIDI out of it. What it cannot do yet is *repair*
+anything, and that is the direction.
+
+**SunoFix — repairing generated stems.** Suno and its neighbours leave recognisable damage:
+smeared transients, a hard ceiling in the top octave, artefacts that surface under dense
+sections, stems that were never truly separate. The plan is a repair pass aimed at those named
+faults on a single stem, not a general "enhance" button — and held to the same discipline as
+everything else here: measure the stem, repair it, and let the A/B comparison say whether the
+number actually moved. The groundwork is already in place, because the artifact metrics were
+chosen to be exactly the measurements such a pass has to improve. Current thinking:
+**[Editing roadmap](docs/editing-roadmap.md)**.
+
+**More detectors, on the same terms.** Every detector here is an unmodified upstream clone
+pinned at a commit, so adding one is a matter of an adapter and an environment rather than of
+vendoring somebody's code. Two models that disagree already tell you more than one; four will
+tell you more than two.
+
+**Per-detector configuration in the interface.** Thresholds, window and segment lengths, and
+device choice currently live in adapter defaults. They belong in the settings panel, saved per
+detector and recorded into the run — a saved score should always be able to say which settings
+produced it.
+
+**macOS.** Planned, not promised, and gated on hardware — see just below.
 
 ## What this is not
 
@@ -185,10 +250,16 @@ activity, transcribing music you hold no rights to included. See
 
 ## Platform
 
-Built and used on Windows with a single RTX 4090. Commands, paths and scripts are
-PowerShell- and Conda-native, and **cross-platform support is not planned** — there is only
-one machine with a GPU behind this project. Everything runs locally; no audio is uploaded
-anywhere.
+Built and used on Windows with a single RTX 4090. Commands, paths and scripts are PowerShell-
+and Conda-native. Everything runs locally; no audio is uploaded anywhere.
+
+**macOS is planned**, and worth being precise about. Two things have to happen. The adapters ask
+for CUDA by name — FST refuses to start without it — so the port means an MPS path through each
+adapter and the PowerShell scripts in a portable form. The harder half is memory: Apple Silicon
+shares one pool between CPU and GPU, so FST's fixed 16 GB working set is 16 GB of everything the
+machine has. A 16 GB MacBook will not run that detector; 32 GB is the realistic bar for it, while
+the rest of the lab is comfortable far below. It happens when there is a Mac here to test on — a
+port nobody has run is not support.
 
 ## License
 
