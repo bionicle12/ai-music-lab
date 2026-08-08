@@ -364,6 +364,8 @@ _EN: dict[str, str] = {
     "muscriptor.error.http_error": "Hugging Face returned an error.",
     "muscriptor.error.failed": "The run failed.",
     "error.no_midi_source": "Choose what to transcribe",
+    "error.no_sunofix_source": "Choose what to repair",
+    "error.measure_first": "Measure the file before running a pass",
     "error.pick_stem": "Pick a stem in the table first",
     "error.midi_not_ready": "MIDI transcription is not set up yet — see Settings",
     # ---- detector cards ------------------------------------------------
@@ -597,6 +599,14 @@ _EN: dict[str, str] = {
     "table.artifact.flatness": "Floor flatness",
     "table.artifact.corr_low": "Corr. low",
     "table.artifact.corr_high": "Corr. high",
+    # Distinct from `cliff`, which is the steepness: this is where it stops.
+    "table.artifact.cutoff": "HF edge, kHz",
+    "table.artifact.tonal": "Strongest ridge, dB",
+    "table.sunofix.before": "Before",
+    "table.sunofix.after": "After",
+    # `table.delta` reads "Δ B−A", which belongs to the version comparison. The
+    # A/B here is one file against itself, so it says so.
+    "table.sunofix.delta": "Δ after−before",
     "table.peaks.frequency": "Frequency, Hz",
     "table.peaks.fakeprint": "Fakeprint",
     "table.detector": "Detector",
@@ -642,9 +652,142 @@ _EN: dict[str, str] = {
         "Transcribe audio into notes with muscriptor. Runs locally, on your GPU."
     ),
     "lead.sunofix": (
-        "Planned: repairing generation artifacts, driven by the measurements on "
-        "the **Artifacts** tab rather than by ear. Nothing here runs yet — the "
-        "design is in `docs/editing-roadmap.md`."
+        "Repairing generation artifacts, aimed by the **Artifacts** "
+        "measurements rather than by ear. Measure first — the repairs tick "
+        "themselves, and each says which figure put it there."
+    ),
+    # ---- SunoFix -----------------------------------------------------------
+    "disc.sunofix.level.title": "What happens to the level",
+    "disc.sunofix.level.body": (
+        "The level of the source is kept. Gain is only ever pulled back, and "
+        "only when true peak would leave -1 dBTP.\n\n"
+        "There is no normalisation and no limiter, because an A/B where one "
+        "side is louder proves nothing: louder reads as better whatever was "
+        "done to it. The output is a mastering-ready WAV, not a master."
+    ),
+    "disc.sunofix.masking.title": "Repairs that have to be proven separately",
+    "disc.sunofix.masking.body": (
+        "**Restore air** and **noise floor** both synthesise material that was "
+        "not in the file. Both remove a signal detectors read easily — a "
+        "lowpass wall, a floor too clean to be a recording.\n\n"
+        "A lower score is therefore not evidence that either one helped. Run "
+        "it on its own, and check the score against a blind listen. A repair "
+        "that only fools the detector is a failure, not a feature."
+    ),
+    "sunofix.source.label": "1. What to repair",
+    "sunofix.source.run": "The analysed track",
+    "sunofix.source.upload": "A file",
+    "sunofix.source.none": "Nothing chosen yet.",
+    "sunofix.upload.label": "Audio file",
+    "sunofix.measure": "▷  Measure and recommend",
+    "sunofix.repair.heading": "### 2. Repair — ticked by the measurements",
+    "sunofix.repair.pending": "Measure first — until then there is nothing to argue from.",
+    "sunofix.taste.heading": "### 3. Musical pass — taste only",
+    "sunofix.preset.label": "Preset",
+    "sunofix.preset.repair_only": "Repair only",
+    "sunofix.preset.soft_glue": "Soft glue",
+    "sunofix.preset.open_top": "Open top",
+    "sunofix.preset.de_harsh": "De-harsh",
+    "sunofix.preset.add_body": "Add body",
+    "sunofix.preset.desc.repair_only": (
+        "The repairs and nothing else, plus a gentle cleanup. No colour added."
+    ),
+    "sunofix.preset.desc.soft_glue": (
+        "A softer pass for a track that already sounds close."
+    ),
+    "sunofix.preset.desc.open_top": (
+        "Opens the top end. The only pass that leaves tone flat, because "
+        "darkening it would undo the point."
+    ),
+    "sunofix.preset.desc.de_harsh": (
+        "Takes the harshness down while keeping the track musical."
+    ),
+    "sunofix.preset.desc.add_body": "More body, warmth and perceived fullness.",
+    "sunofix.finetune": "Fine-tune",
+    "sunofix.warmth.heading": "**Warmth** — harmonic density. Subtle on a loud master.",
+    "sunofix.warmth.enabled": "Warmth on",
+    "sunofix.warmth.character": "Character",
+    "sunofix.warmth.character.tape": "Tape",
+    "sunofix.warmth.character.tube": "Tube",
+    "sunofix.warmth.character.console": "Console",
+    "sunofix.warmth.character.warm": "Warm",
+    "sunofix.warmth.drive": "Drive",
+    "sunofix.warmth.mix": "Mix",
+    "sunofix.warmth.tone": "Tone",
+    "sunofix.warmth.tone.info": "Tilt around 1 kHz. Off when warmth is off.",
+    "sunofix.cleanup.heading": (
+        "**HF cleanup** — quiet high-frequency debris only."
+    ),
+    "sunofix.cleanup.enabled": "Cleanup on",
+    "sunofix.cleanup.strength": "Strength",
+    "sunofix.cleanup.strength.soft": "Soft",
+    "sunofix.cleanup.strength.medium": "Medium",
+    "sunofix.cleanup.strength.strong": "Strong",
+    "sunofix.cleanup.strength.tails_only": "Tails only",
+    "sunofix.cleanup.strength.air_clean": "Air clean",
+    "sunofix.run": "▷  Run the pass",
+    "sunofix.status.idle": "Status: measure a file, then run a pass.",
+    "sunofix.status.measured": (
+        "Measured `{name}`. Repairs recommended: {count}. Every tick below says "
+        "which figure put it there."
+    ),
+    "sunofix.status.nothing": (
+        "Nothing was switched on, so nothing changed. Tick a repair or enable a "
+        "musical pass."
+    ),
+    "sunofix.status.done": "Wrote `{name}`. Ran: {modules}. {level}",
+    "sunofix.status.level_kept": "The level of the source was kept.",
+    "sunofix.status.level_pulled": (
+        "True peak was over the ceiling, so the output was pulled back by "
+        "{gain} dB."
+    ),
+    "sunofix.delta.label": "What the pass measurably did (after − before)",
+    "sunofix.preview.label": "Result",
+    "sunofix.file.label": "Repaired WAV",
+    "sunofix.badge.masking": "prove separately",
+    "sunofix.module.de_artifact": "De-artifact",
+    "sunofix.module.fix_transients": "Transients",
+    "sunofix.module.restore_air": "Restore air",
+    "sunofix.module.restore_floor": "Noise floor",
+    "sunofix.module.fix_stereo": "Stereo image",
+    "sunofix.module.hf_cleanup": "HF cleanup",
+    "sunofix.module.warmth": "Warmth",
+    "sunofix.module.tone_tilt": "Tone",
+    "sunofix.module.level_policy": "Level",
+    "sunofix.why.de_artifact": (
+        "{prominence} dB of tonal prominence at {frequencies} kHz — steady "
+        "ridges of the kind a generator leaves."
+    ),
+    "sunofix.why.de_artifact.none": (
+        "Nothing stands out of the upper mids; there is no ridge to notch."
+    ),
+    "sunofix.why.fix_transients": (
+        "Attacks rise by only {attack} dB, which reads as smearing."
+    ),
+    "sunofix.why.fix_transients.none": (
+        "Attacks rise by {attack} dB — inside the range real material sits in."
+    ),
+    "sunofix.why.restore_air": (
+        "The top end stops at {cutoff} kHz and falls at {slope} dB per octave: "
+        "a wall, not a rolloff."
+    ),
+    "sunofix.why.restore_air.none": (
+        "The top end rolls off on its own; there is no wall to build above."
+    ),
+    "sunofix.why.restore_floor": (
+        "The floor sits at {floor} dBFS with a flatness of {flatness} — "
+        "cleaner and flatter than a recording ever is."
+    ),
+    "sunofix.why.restore_floor.none": (
+        "The floor already looks like something that was recorded."
+    ),
+    "sunofix.why.fix_stereo": (
+        "High-band correlation is {correlation}: outside the range where the "
+        "image reads as an image."
+    ),
+    "sunofix.why.fix_stereo.none": (
+        "High-band correlation is {correlation} — an ordinary stereo image, "
+        "left alone."
     ),
     # ---- moved method notes --------------------------------------------------
     "disc.spectrum.reading.title": "Reading the spectrogram",
@@ -1196,6 +1339,8 @@ _RU: dict[str, str] = {
     "muscriptor.error.http_error": "Hugging Face вернул ошибку.",
     "muscriptor.error.failed": "Прогон не удался.",
     "error.no_midi_source": "Выберите, что переводить",
+    "error.no_sunofix_source": "Выберите, что чинить",
+    "error.measure_first": "Измерьте файл перед запуском прохода",
     "error.pick_stem": "Сначала выберите стем в таблице",
     "error.midi_not_ready": "Перевод в MIDI ещё не настроен — см. настройки",
     # ---- detector cards ------------------------------------------------
@@ -1429,6 +1574,11 @@ _RU: dict[str, str] = {
     "table.artifact.flatness": "Плоскость пола",
     "table.artifact.corr_low": "Корр. низ",
     "table.artifact.corr_high": "Корр. верх",
+    "table.artifact.cutoff": "Край ВЧ, кГц",
+    "table.artifact.tonal": "Сильнейший пик, дБ",
+    "table.sunofix.before": "До",
+    "table.sunofix.after": "После",
+    "table.sunofix.delta": "Δ после−до",
     "table.peaks.frequency": "Частота, Hz",
     "table.peaks.fakeprint": "Fakeprint",
     "table.detector": "Детектор",
@@ -1474,9 +1624,142 @@ _RU: dict[str, str] = {
         "видеокарте."
     ),
     "lead.sunofix": (
-        "В плане: починка артефактов генерации, управляемая измерениями вкладки "
-        "**Артефакты**, а не слухом. Пока ничего не работает — замысел в "
-        "`docs/editing-roadmap.md`."
+        "Починка артефактов генерации, наведённая измерениями вкладки "
+        "**Артефакты**, а не слухом. Сначала измерение — ремонт проставляется "
+        "сам и называет число, которое его включило."
+    ),
+    # ---- SunoFix -----------------------------------------------------------
+    "disc.sunofix.level.title": "Что происходит с уровнем",
+    "disc.sunofix.level.body": (
+        "Уровень источника сохраняется. Громкость только снижается, и только "
+        "если true peak уходит выше -1 dBTP.\n\n"
+        "Ни нормализации, ни лимитера здесь нет: A/B, где одна сторона громче, "
+        "ничего не доказывает — громче читается как лучше, что бы с треком ни "
+        "сделали. На выходе WAV-заготовка под мастеринг, а не мастер."
+    ),
+    "disc.sunofix.masking.title": "Ремонт, который нужно доказывать отдельно",
+    "disc.sunofix.masking.body": (
+        "**Восстановление воздуха** и **шумовой пол** синтезируют то, чего в "
+        "файле не было. Оба убирают сигнал, который детектор читает легче "
+        "всего: стену лоупаса и пол, слишком чистый для записи.\n\n"
+        "Упавший score поэтому не доказывает, что стало лучше. Прогоняйте "
+        "такой модуль отдельно и сверяйте score со слепым прослушиванием. "
+        "Правка, которая только обманывает детектор, — это провал, а не фича."
+    ),
+    "sunofix.source.label": "1. Что чинить",
+    "sunofix.source.run": "Проанализированный трек",
+    "sunofix.source.upload": "Файл",
+    "sunofix.source.none": "Пока ничего не выбрано.",
+    "sunofix.upload.label": "Аудиофайл",
+    "sunofix.measure": "▷  Измерить и предложить",
+    "sunofix.repair.heading": "### 2. Ремонт — галочки ставят измерения",
+    "sunofix.repair.pending": "Сначала измерьте — до этого спорить не с чем.",
+    "sunofix.taste.heading": "### 3. Музыкальный проход — только вкус",
+    "sunofix.preset.label": "Пресет",
+    "sunofix.preset.repair_only": "Только ремонт",
+    "sunofix.preset.soft_glue": "Мягкая склейка",
+    "sunofix.preset.open_top": "Открыть верх",
+    "sunofix.preset.de_harsh": "Убрать резкость",
+    "sunofix.preset.add_body": "Добавить тело",
+    "sunofix.preset.desc.repair_only": (
+        "Только ремонт и мягкий клинап. Никакого цвета."
+    ),
+    "sunofix.preset.desc.soft_glue": (
+        "Мягкий проход для трека, который уже звучит близко."
+    ),
+    "sunofix.preset.desc.open_top": (
+        "Открывает верх. Единственный проход с нулевым tone: затемнять здесь "
+        "значит отменять собственную работу."
+    ),
+    "sunofix.preset.desc.de_harsh": (
+        "Убирает резкость, сохраняя музыкальность."
+    ),
+    "sunofix.preset.desc.add_body": "Больше тела, теплоты и плотности.",
+    "sunofix.finetune": "Тонкая настройка",
+    "sunofix.warmth.heading": (
+        "**Warmth** — гармоническая плотность. На громком мастере деликатно."
+    ),
+    "sunofix.warmth.enabled": "Warmth включён",
+    "sunofix.warmth.character": "Характер",
+    "sunofix.warmth.character.tape": "Лента",
+    "sunofix.warmth.character.tube": "Лампа",
+    "sunofix.warmth.character.console": "Консоль",
+    "sunofix.warmth.character.warm": "Тепло",
+    "sunofix.warmth.drive": "Drive",
+    "sunofix.warmth.mix": "Mix",
+    "sunofix.warmth.tone": "Tone",
+    "sunofix.warmth.tone.info": (
+        "Наклон вокруг 1 кГц. Выключается вместе с warmth."
+    ),
+    "sunofix.cleanup.heading": "**Чистка ВЧ** — только тихий мусор в верхах.",
+    "sunofix.cleanup.enabled": "Чистка включена",
+    "sunofix.cleanup.strength": "Сила",
+    "sunofix.cleanup.strength.soft": "Мягко",
+    "sunofix.cleanup.strength.medium": "Средне",
+    "sunofix.cleanup.strength.strong": "Сильно",
+    "sunofix.cleanup.strength.tails_only": "Только хвосты",
+    "sunofix.cleanup.strength.air_clean": "Только воздух",
+    "sunofix.run": "▷  Запустить проход",
+    "sunofix.status.idle": "Статус: измерьте файл, затем запустите проход.",
+    "sunofix.status.measured": (
+        "Измерен `{name}`. Рекомендовано ремонтов: {count}. Каждая галочка ниже "
+        "называет число, которое её включило."
+    ),
+    "sunofix.status.nothing": (
+        "Ничего не было включено, поэтому ничего не изменилось. Отметьте ремонт "
+        "или включите музыкальный проход."
+    ),
+    "sunofix.status.done": "Записан `{name}`. Отработало: {modules}. {level}",
+    "sunofix.status.level_kept": "Уровень источника сохранён.",
+    "sunofix.status.level_pulled": (
+        "True peak вышел за потолок, поэтому выход снижен на {gain} дБ."
+    ),
+    "sunofix.delta.label": "Что проход измеримо сделал (после − до)",
+    "sunofix.preview.label": "Результат",
+    "sunofix.file.label": "Починенный WAV",
+    "sunofix.badge.masking": "проверить отдельно",
+    "sunofix.module.de_artifact": "Де-артефакт",
+    "sunofix.module.fix_transients": "Транзиенты",
+    "sunofix.module.restore_air": "Восстановление воздуха",
+    "sunofix.module.restore_floor": "Шумовой пол",
+    "sunofix.module.fix_stereo": "Стереокартина",
+    "sunofix.module.hf_cleanup": "Чистка ВЧ",
+    "sunofix.module.warmth": "Warmth",
+    "sunofix.module.tone_tilt": "Tone",
+    "sunofix.module.level_policy": "Уровень",
+    "sunofix.why.de_artifact": (
+        "{prominence} дБ тональной выпуклости на {frequencies} кГц — устойчивые "
+        "пики того типа, что оставляет генератор."
+    ),
+    "sunofix.why.de_artifact.none": (
+        "В верхней середине ничего не выпирает; вырезать нечего."
+    ),
+    "sunofix.why.fix_transients": (
+        "Атаки нарастают всего на {attack} дБ — это читается как размазывание."
+    ),
+    "sunofix.why.fix_transients.none": (
+        "Атаки нарастают на {attack} дБ — в диапазоне живого материала."
+    ),
+    "sunofix.why.restore_air": (
+        "Верх обрывается на {cutoff} кГц и падает на {slope} дБ на октаву: это "
+        "стена, а не спад."
+    ),
+    "sunofix.why.restore_air.none": (
+        "Верх спадает сам по себе; стены, над которой нужно строить, нет."
+    ),
+    "sunofix.why.restore_floor": (
+        "Пол на {floor} dBFS при плоскости {flatness} — чище и ровнее, чем "
+        "бывает у записи."
+    ),
+    "sunofix.why.restore_floor.none": (
+        "Пол уже выглядит как у чего-то записанного."
+    ),
+    "sunofix.why.fix_stereo": (
+        "Корреляция верха {correlation}: вне диапазона, где картина читается "
+        "как картина."
+    ),
+    "sunofix.why.fix_stereo.none": (
+        "Корреляция верха {correlation} — обычная стереокартина, не трогаем."
     ),
     # ---- moved method notes --------------------------------------------------
     "disc.spectrum.reading.title": "Как читать спектрограмму",

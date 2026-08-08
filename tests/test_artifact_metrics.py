@@ -14,6 +14,7 @@ from music_lab_ui.artifact_metrics import (
     noise_floor,
     rms_envelope_db,
     spectral_rolloff_hz,
+    tonal_peaks,
 )
 from music_lab_ui.i18n import get_translator
 
@@ -94,6 +95,81 @@ def test_noise_floor_level_uses_the_quiet_frames_not_the_loud_ones() -> None:
     level, _ = noise_floor(magnitude, frequencies)
 
     assert level < -60.0
+
+
+def whistling_noise(
+    whistles_hz: tuple[float, ...], seconds: float = 4.0, level: float = 0.25
+) -> np.ndarray:
+    """Broadband noise with steady sine tones planted on top of it."""
+    rng = np.random.default_rng(19)
+    length = int(seconds * SAMPLE_RATE)
+    out = rng.normal(0, 0.1, length)
+    time = np.arange(length) / SAMPLE_RATE
+    for frequency in whistles_hz:
+        out += level * np.sin(2 * np.pi * frequency * time)
+    return out.astype(np.float32)
+
+
+def averaged_spectrum_db(mono: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    frequencies, _, spectrum = signal.stft(
+        mono, fs=SAMPLE_RATE, nperseg=4096, scaling="spectrum"
+    )
+    power = np.mean(np.square(np.abs(spectrum), dtype=np.float64), axis=1)
+    return 20.0 * np.log10(np.maximum(np.sqrt(power), 1e-10)), frequencies
+
+
+def test_tonal_peaks_locate_planted_whistles() -> None:
+    spectrum_db, frequencies = averaged_spectrum_db(whistling_noise((8_000.0, 5_200.0)))
+
+    peaks = tonal_peaks(spectrum_db, frequencies)
+
+    found = sorted(peak.frequency_hz for peak in peaks)
+    assert len(found) == 2
+    assert found[0] == pytest.approx(5_200.0, abs=100.0)
+    assert found[1] == pytest.approx(8_000.0, abs=100.0)
+    assert all(peak.prominence_db > 4.0 for peak in peaks)
+
+
+def test_tonal_peaks_are_sorted_by_how_far_they_stick_out() -> None:
+    rng = np.random.default_rng(23)
+    length = int(4.0 * SAMPLE_RATE)
+    time = np.arange(length) / SAMPLE_RATE
+    quiet_then_loud = (
+        rng.normal(0, 0.1, length)
+        + 0.05 * np.sin(2 * np.pi * 6_000.0 * time)
+        + 0.40 * np.sin(2 * np.pi * 9_000.0 * time)
+    ).astype(np.float32)
+    spectrum_db, frequencies = averaged_spectrum_db(quiet_then_loud)
+
+    peaks = tonal_peaks(spectrum_db, frequencies)
+
+    assert peaks[0].frequency_hz == pytest.approx(9_000.0, abs=100.0)
+    assert peaks[0].prominence_db > peaks[-1].prominence_db
+
+
+def test_broadband_noise_has_no_tonal_peaks() -> None:
+    spectrum_db, frequencies = averaged_spectrum_db(whistling_noise(()))
+
+    assert tonal_peaks(spectrum_db, frequencies) == ()
+
+
+def test_a_real_instrument_partial_does_not_count_as_a_whistle() -> None:
+    """Vibrato smears a partial across bins, so it stops standing out."""
+    length = int(4.0 * SAMPLE_RATE)
+    time = np.arange(length) / SAMPLE_RATE
+    rng = np.random.default_rng(29)
+    wobbling = (
+        rng.normal(0, 0.1, length)
+        + 0.25 * np.sin(2 * np.pi * 8_000.0 * time + 40.0 * np.sin(2 * np.pi * 5.0 * time))
+    ).astype(np.float32)
+    steady = whistling_noise((8_000.0,))
+
+    wobbling_peaks = tonal_peaks(*averaged_spectrum_db(wobbling))
+    steady_peaks = tonal_peaks(*averaged_spectrum_db(steady))
+
+    assert steady_peaks[0].prominence_db > max(
+        (peak.prominence_db for peak in wobbling_peaks), default=0.0
+    )
 
 
 def test_band_stereo_correlation_is_none_for_mono() -> None:

@@ -2,15 +2,16 @@
 
 [← Documentation](README.md) · [Русский](ru/editing-roadmap.md)
 
-**Status: SunoFix is not implemented.** To MIDI is — see [Audio → MIDI](midi.md). What remains
-here is the SunoFix design, held so it can be argued with before any of it is written.
+**Status: both halves ship.** See [Audio → MIDI](midi.md) for To MIDI. SunoFix landed as the
+design below describes, with one addition the design did not have: the repair layer and the
+taste layer are kept apart by construction, and a preset cannot reach into the repair.
 
 The workspace is split in two:
 
 | Group | What it does |
 | --- | --- |
 | **Analysis** | Measures a track. |
-| **Editing** | Changes a track. `To MIDI` ships; `SunoFix` is still a placeholder. |
+| **Editing** | Changes a track. Both `To MIDI` and `SunoFix` ship. |
 
 ## The rules this half inherits
 
@@ -28,17 +29,56 @@ Nothing here gets to break what the analysis side already guarantees:
 
 ## SunoFix — repairing generation artifacts
 
-The [Artifacts](artifact-metrics.md) tab already measures attack, 95% rolloff, the HF cliff,
-noise floor and its flatness, and low/high stereo correlation. Each of those is a defect with a
-known repair. The plan is to drive the repair from the measurement instead of by ear:
+The [Artifacts](artifact-metrics.md) tab measures attack, 95% rolloff, the HF cliff, the HF
+edge, tonal prominence, noise floor and its flatness, and low/high stereo correlation. Each of
+those is a defect with a known repair, and the repair is driven from the measurement rather
+than by ear:
 
-| Measured defect | Intended repair |
-| --- | --- |
-| HF cliff, dead top end | Spectral resynthesis above the wall |
-| Smeared transients (low attack) | Transient shaping, driven by the measured attack |
-| Sterile, unnaturally flat noise floor | Restore a plausible floor |
-| Collapsed or over-wide stereo image | Per-band correction from the correlation figures |
-| Chirps, warble, swirl in the highs | Spectral de-noise |
+| Measured defect | Repair | Module |
+| --- | --- | --- |
+| Tonal ridges in the upper mids | Narrow notches at the measured frequencies | `de_artifact` |
+| Smeared transients (low attack) | Transient shaping, driven by the measured attack | `fix_transients` |
+| HF cliff, dead top end | Band extension above the wall | `restore_air` |
+| Sterile, unnaturally flat noise floor | Restore a plausible floor | `restore_floor` |
+| Collapsed or over-wide stereo image | Per-band correction from the correlation figures | `fix_stereo` |
+| Chirps, warble, swirl in the highs | Downward expansion of quiet HF | `hf_cleanup` |
+
+### The two layers, and why they are separate
+
+**Repair** is ticked by the measurements. **Taste** — warmth and HF cleanup — is what presets
+control. A preset may never touch the repair layer: if choosing a musical pass could silently
+change which defects get fixed, the measurement has stopped being the thing that drives the
+repair. A test asserts this for every preset.
+
+The chain runs `de_artifact → fix_transients → hf_cleanup → restore_air → restore_floor →
+fix_stereo → warmth → tone → true-peak check`. Two orderings in there are arguments, not
+conventions: `de_artifact` goes before anything that adds harmonics, so its notches aim at the
+spectrum that was measured; `restore_air` goes *after* cleanup, because a cleanup stage placed
+downstream would expand away the band that was just synthesised.
+
+### The level
+
+Nothing is normalised and nothing is limited. Gain is only ever pulled back, and only when true
+peak would leave -1 dBTP. An A/B where one side is louder proves nothing, because louder reads
+as better whatever was done to it. The output is a mastering-ready WAV, not a master.
+
+### Presets
+
+Taste only. The starting values were measured off a working implementation rather than
+invented, and are a hypothesis until an A/B of our own says otherwise.
+
+| Preset | Warmth | Drive | Mix | Tone | HF cleanup |
+| --- | --- | --- | --- | --- | --- |
+| `repair_only` | off | — | — | — | soft |
+| `soft_glue` | on | 0.08 | 0.12 | -0.05 | off |
+| `open_top` | on | 0.08 | 0.12 | 0.00 | off |
+| `de_harsh` | on | 0.10 | 0.14 | -0.05 | soft |
+| `add_body` | on | 0.22 | 0.30 | -0.10 | off |
+
+`mix` sits at roughly 1.4x `drive` throughout: they are two controls for one idea. `tone` is
+negative everywhere except `open_top`, because it exists to pay back the brightness that
+restored air and added harmonics put in — which is exactly what the one pass whose job is the
+top end must not do.
 
 Two execution paths, most likely both:
 
@@ -48,9 +88,15 @@ Two execution paths, most likely both:
    similar) through a plugin host. A VST run has to be marked non-reproducible in the history,
    because the plugin build becomes part of the result.
 
-**Open question before anything is written:** which of these repairs actually lowers a detector
-score for the right reason, and which merely masks the signal the detector reads. A repair that
-only fools the detector while the audio still sounds wrong is a failure, not a feature.
+**The open question, now with a suspect.** `restore_air` and `restore_floor` both synthesise
+material that was not in the file, and both remove a signal detectors read easily — a lowpass
+wall, a floor too clean to be a recording. A lower score after either one is therefore not
+evidence that it helped. Both are marked in the interface, and the way to settle it is to run
+one on its own and check the score against a blind listen. `de_artifact` and `fix_transients`
+are the honest ones by this test: they remove something audible.
+
+That is still an open question, not a settled one. Nothing here has been through the blind
+listen yet.
 
 ## To MIDI — done
 
@@ -68,6 +114,9 @@ so the workflow is stems in, sketch out.
 
 1. ~~Hugging Face token handling and model download.~~ Done, shared by both features.
 2. ~~`To MIDI`, end to end on a single stem.~~ Done.
-3. Brainstorm and settle the SunoFix design — in particular the open question above.
-4. `SunoFix`, one repair at a time, each one measured before and after.
-5. The optional VST bridge, last, and only once the autonomous path works.
+3. ~~Settle the SunoFix design.~~ Done — the two-layer split above.
+4. ~~`SunoFix`, one repair at a time, each measured before and after.~~ Done; every pass
+   returns the artifact metrics as an A/B against the source.
+5. Prove the marked repairs, one at a time, against a blind listen. Until that happens,
+   `restore_air` and `restore_floor` are switched on at your own risk.
+6. The optional VST bridge, last, and only once the autonomous path works.

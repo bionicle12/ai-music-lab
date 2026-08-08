@@ -12,6 +12,7 @@ from . import muscriptor as muscriptor_runner
 from . import provisioning
 from . import readiness as readiness_module
 from . import repositories
+from . import sunofix
 from .artifact_metrics import ArtifactMetrics, measure_artifacts
 from .audio_features import extract_audio_features, extract_preview_features
 from .comparison import FeatureComparison, compare_features
@@ -518,6 +519,52 @@ class AnalysisService:
             ),
         )
         return destination, stream
+
+    def sunofix_destination(
+        self, source: Path, preset: str, now: dt.datetime | None = None
+    ) -> Path:
+        """Where a repaired file lands.
+
+        The preset goes in the filename because a folder of `track-fixed.wav`
+        files is unreadable a week later, and because the settings that made a
+        file are part of what the file is.
+        """
+        stamp = (now or dt.datetime.now()).strftime("%Y%m%dT%H%M%S")
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "-", source.stem).strip("-") or "track"
+        return self.paths.sunofix_dir / f"{stamp}-{safe}-{preset}.wav"
+
+    def sunofix_recommendations(
+        self,
+        audio_path: str | Path | None,
+        t: Translator | None = None,
+    ) -> tuple[ArtifactMetrics, tuple[sunofix.Recommendation, ...]]:
+        """Measure a file and read the repairs out of the measurements."""
+        translate = t or get_translator()
+        if not audio_path:
+            raise ValueError(translate("error.no_sunofix_source"))
+        source = self._audio_source(str(audio_path), translate)
+        metrics = self.artifact_measurer(source)
+        return metrics, sunofix.recommend(metrics)
+
+    def run_sunofix(
+        self,
+        audio_path: str | Path | None,
+        settings: sunofix.SunoFixSettings,
+        metrics: ArtifactMetrics | None = None,
+        t: Translator | None = None,
+    ) -> sunofix.SunoFixResult:
+        """Repair one file into a new one and measure both sides.
+
+        The source is never modified: this returns a new file, exactly as the
+        rest of the editing half does, so the result can be analysed as its own
+        version and read as an A/B against where it came from.
+        """
+        translate = t or get_translator()
+        if not audio_path:
+            raise ValueError(translate("error.no_sunofix_source"))
+        source = self._audio_source(str(audio_path), translate)
+        destination = self.sunofix_destination(source, settings.preset)
+        return sunofix.run(source, destination, settings, metrics)
 
     def compare_runs(
         self,

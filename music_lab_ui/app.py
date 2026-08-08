@@ -80,6 +80,18 @@ from .settings import (
     resolve_token,
     token_fingerprint,
 )
+from .sunofix import (
+    CLEANUP_STRENGTHS,
+    MASKING_RISK_MODULES,
+    PRESETS,
+    REPAIR_MODULES,
+    WARMTH_CHARACTERS,
+    CleanupSettings,
+    RepairSettings,
+    SunoFixSettings,
+    WarmthSettings,
+    preset_settings,
+)
 from .ui_presenters import (
     artifact_rows,
     comparison_metric_rows,
@@ -95,6 +107,9 @@ from .ui_presenters import (
     readiness_disclosure,
     readiness_html,
     repo_status_rows,
+    sunofix_delta_rows,
+    sunofix_reasons,
+    sunofix_summary,
     technical_payload,
     timeline_summary,
 )
@@ -1120,6 +1135,145 @@ def build_app(
                         with gr.Tabs() as editing_tabs:
                             with gr.Tab(t("tab.edit.sunofix"), id="sunofix"):
                                 gr.Markdown(t("lead.sunofix"))
+                                gr.HTML(disclosure_html("sunofix/level", t))
+
+                                sunofix_source = gr.Radio(
+                                    choices=[
+                                        (t("sunofix.source.run"), "run"),
+                                        (t("sunofix.source.upload"), "upload"),
+                                    ],
+                                    value="run",
+                                    label=t("sunofix.source.label"),
+                                )
+                                sunofix_upload = gr.File(
+                                    label=t("sunofix.upload.label"),
+                                    file_count="single",
+                                    file_types=[".wav", ".flac", ".mp3"],
+                                )
+                                sunofix_measure = gr.Button(
+                                    t("sunofix.measure"),
+                                    variant="secondary",
+                                )
+                                sunofix_status = gr.Markdown(t("sunofix.status.idle"))
+
+                                # Measured metrics travel between the two
+                                # buttons: the repair layer is only ever set
+                                # from a measurement, so the pass has to be
+                                # able to prove one was taken.
+                                sunofix_metrics = gr.State(None)
+
+                                gr.Markdown(t("sunofix.repair.heading"))
+                                # Said once, above the boxes. Repeating it under
+                                # each of the five was five times the words for
+                                # the same sentence.
+                                gr.Markdown(t("sunofix.repair.pending"))
+                                sunofix_repair_boxes: dict[str, Any] = {}
+                                sunofix_repair_reasons: dict[str, Any] = {}
+                                for module in REPAIR_MODULES:
+                                    label = t(f"sunofix.module.{module}")
+                                    if module in MASKING_RISK_MODULES:
+                                        label = f"{label} · {t('sunofix.badge.masking')}"
+                                    sunofix_repair_boxes[module] = gr.Checkbox(
+                                        value=False,
+                                        label=label,
+                                    )
+                                    # Filled by the measurement. Empty until
+                                    # then, because there is no evidence yet.
+                                    sunofix_repair_reasons[module] = gr.Markdown("")
+                                gr.HTML(disclosure_html("sunofix/masking", t))
+
+                                gr.Markdown(t("sunofix.taste.heading"))
+                                sunofix_preset = gr.Dropdown(
+                                    choices=[
+                                        (t(f"sunofix.preset.{name}"), name)
+                                        for name in PRESETS
+                                    ],
+                                    value="repair_only",
+                                    label=t("sunofix.preset.label"),
+                                )
+                                sunofix_preset_desc = gr.Markdown(
+                                    t("sunofix.preset.desc.repair_only")
+                                )
+
+                                with gr.Accordion(t("sunofix.finetune"), open=False):
+                                    gr.Markdown(t("sunofix.warmth.heading"))
+                                    sunofix_warmth_on = gr.Checkbox(
+                                        value=False,
+                                        label=t("sunofix.warmth.enabled"),
+                                    )
+                                    sunofix_character = gr.Dropdown(
+                                        choices=[
+                                            (t(f"sunofix.warmth.character.{name}"), name)
+                                            for name in WARMTH_CHARACTERS
+                                        ],
+                                        value="warm",
+                                        label=t("sunofix.warmth.character"),
+                                    )
+                                    sunofix_drive = gr.Slider(
+                                        minimum=0.0,
+                                        maximum=0.5,
+                                        step=0.01,
+                                        value=0.12,
+                                        label=t("sunofix.warmth.drive"),
+                                    )
+                                    sunofix_mix = gr.Slider(
+                                        minimum=0.0,
+                                        maximum=0.5,
+                                        step=0.01,
+                                        value=0.18,
+                                        label=t("sunofix.warmth.mix"),
+                                    )
+                                    sunofix_tone = gr.Slider(
+                                        minimum=-0.2,
+                                        maximum=0.2,
+                                        step=0.01,
+                                        value=-0.05,
+                                        label=t("sunofix.warmth.tone"),
+                                        info=t("sunofix.warmth.tone.info"),
+                                    )
+                                    gr.Markdown(t("sunofix.cleanup.heading"))
+                                    sunofix_cleanup_on = gr.Checkbox(
+                                        value=True,
+                                        label=t("sunofix.cleanup.enabled"),
+                                    )
+                                    sunofix_strength = gr.Dropdown(
+                                        choices=[
+                                            (t(f"sunofix.cleanup.strength.{name}"), name)
+                                            for name in CLEANUP_STRENGTHS
+                                        ],
+                                        value="soft",
+                                        label=t("sunofix.cleanup.strength"),
+                                    )
+
+                                sunofix_run = gr.Button(
+                                    t("sunofix.run"),
+                                    variant="primary",
+                                )
+                                sunofix_delta = gr.Dataframe(
+                                    headers=[
+                                        t("table.metric"),
+                                        t("table.sunofix.before"),
+                                        t("table.sunofix.after"),
+                                        t("table.sunofix.delta"),
+                                    ],
+                                    value=[],
+                                    interactive=False,
+                                    label=t("sunofix.delta.label"),
+                                )
+                                sunofix_audio = gr.Audio(
+                                    value=None,
+                                    label=t("sunofix.preview.label"),
+                                    interactive=False,
+                                    waveform_options={
+                                        "waveform_color": "#9d7bf5",
+                                        "waveform_progress_color": "#f4ad28",
+                                    },
+                                )
+                                sunofix_file = gr.File(
+                                    value=None,
+                                    label=t("sunofix.file.label"),
+                                    interactive=False,
+                                )
                             with gr.Tab(t("tab.edit.midi"), id="midi"):
                                 gr.Markdown(t("lead.midi"))
                                 with gr.Column(elem_classes="guide-stack"):
@@ -1943,6 +2097,172 @@ def build_app(
         settings_controls["pull"].click(
             fn=pull_callback,
             outputs=[settings_controls["repo_log"], settings_controls["repos"]],
+            show_progress="full",
+        )
+
+        # ---- SunoFix -------------------------------------------------------
+
+        def sunofix_source_path(source_kind: str, uploaded, run_id: str | None) -> str:
+            if source_kind == "run":
+                if not run_id:
+                    raise gr.Error(t("error.analyze_first"))
+                return str(analysis_service.history.get_run(run_id).audio_path)
+            path = uploaded if isinstance(uploaded, str) else getattr(uploaded, "name", None)
+            if not path:
+                raise gr.Error(t("error.no_sunofix_source"))
+            return path
+
+        def sunofix_measure_callback(
+            source_kind: str,
+            uploaded,
+            run_id: str | None,
+            progress=gr.Progress(),
+        ):
+            """Measure, then let the measurements tick their own boxes."""
+            path = sunofix_source_path(source_kind, uploaded, run_id)
+            progress(0.1, desc=t("sunofix.measure"))
+            try:
+                metrics, suggestions = analysis_service.sunofix_recommendations(path, t=t)
+            except (KeyError, OSError, RuntimeError, ValueError) as error:
+                raise gr.Error(str(error)) from error
+
+            reasons = sunofix_reasons(suggestions, t)
+            ticked = {item.module: item.recommended for item in suggestions}
+            status = t(
+                "sunofix.status.measured",
+                name=Path(path).name,
+                count=sum(ticked.values()),
+            )
+            return (
+                status,
+                metrics,
+                *[ticked[module] for module in REPAIR_MODULES],
+                *[reasons[module] for module in REPAIR_MODULES],
+            )
+
+        sunofix_measure.click(
+            fn=sunofix_measure_callback,
+            inputs=[sunofix_source, sunofix_upload, current_run_id],
+            outputs=[
+                sunofix_status,
+                sunofix_metrics,
+                *[sunofix_repair_boxes[module] for module in REPAIR_MODULES],
+                *[sunofix_repair_reasons[module] for module in REPAIR_MODULES],
+            ],
+            show_progress="full",
+        )
+
+        def sunofix_preset_callback(name: str):
+            """A preset moves the taste controls and only the taste controls."""
+            chosen = preset_settings(name)
+            return (
+                t(f"sunofix.preset.desc.{chosen.preset}"),
+                chosen.warmth.enabled,
+                chosen.warmth.character,
+                chosen.warmth.drive,
+                chosen.warmth.mix,
+                chosen.warmth.tone,
+                chosen.cleanup.enabled,
+                chosen.cleanup.strength,
+            )
+
+        sunofix_preset.change(
+            fn=sunofix_preset_callback,
+            inputs=[sunofix_preset],
+            outputs=[
+                sunofix_preset_desc,
+                sunofix_warmth_on,
+                sunofix_character,
+                sunofix_drive,
+                sunofix_mix,
+                sunofix_tone,
+                sunofix_cleanup_on,
+                sunofix_strength,
+            ],
+        )
+
+        def sunofix_run_callback(
+            source_kind: str,
+            uploaded,
+            run_id: str | None,
+            metrics,
+            preset: str,
+            de_artifact: bool,
+            fix_transients: bool,
+            restore_air: bool,
+            restore_floor: bool,
+            fix_stereo: bool,
+            warmth_on: bool,
+            character: str,
+            drive: float,
+            mix: float,
+            tone: float,
+            cleanup_on: bool,
+            strength: str,
+            progress=gr.Progress(),
+        ):
+            # No measurement, no repair. The layer boundary is the point of the
+            # feature, so the interface refuses rather than guessing.
+            if metrics is None:
+                raise gr.Error(t("error.measure_first"))
+            path = sunofix_source_path(source_kind, uploaded, run_id)
+            settings = SunoFixSettings(
+                preset=preset,
+                repair=RepairSettings(
+                    de_artifact=bool(de_artifact),
+                    restore_air=bool(restore_air),
+                    fix_transients=bool(fix_transients),
+                    restore_floor=bool(restore_floor),
+                    fix_stereo=bool(fix_stereo),
+                ),
+                warmth=WarmthSettings(
+                    enabled=bool(warmth_on),
+                    character=character,
+                    drive=float(drive),
+                    mix=float(mix),
+                    tone=float(tone),
+                ),
+                cleanup=CleanupSettings(
+                    enabled=bool(cleanup_on), strength=strength
+                ),
+            )
+
+            progress(0.2, desc=t("sunofix.run"))
+            try:
+                result = analysis_service.run_sunofix(path, settings, metrics, t=t)
+            except (KeyError, OSError, RuntimeError, ValueError) as error:
+                raise gr.Error(str(error)) from error
+
+            return (
+                sunofix_summary(result, t),
+                sunofix_delta_rows(result.before, result.after, t),
+                str(result.output_path),
+                str(result.output_path),
+            )
+
+        sunofix_run.click(
+            fn=sunofix_run_callback,
+            inputs=[
+                sunofix_source,
+                sunofix_upload,
+                current_run_id,
+                sunofix_metrics,
+                sunofix_preset,
+                *[sunofix_repair_boxes[module] for module in REPAIR_MODULES],
+                sunofix_warmth_on,
+                sunofix_character,
+                sunofix_drive,
+                sunofix_mix,
+                sunofix_tone,
+                sunofix_cleanup_on,
+                sunofix_strength,
+            ],
+            outputs=[
+                sunofix_status,
+                sunofix_delta,
+                sunofix_audio,
+                sunofix_file,
+            ],
             show_progress="full",
         )
 

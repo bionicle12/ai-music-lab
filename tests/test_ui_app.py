@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import gradio as gr
+import pytest
 from gradio import utils
 
 from music_lab_ui.app import (
@@ -12,6 +13,7 @@ from music_lab_ui.app import (
     settings_modal_head,
 )
 from music_lab_ui.i18n import get_translator
+from music_lab_ui.sunofix import MASKING_RISK_MODULES, REPAIR_MODULES
 
 t = get_translator()
 
@@ -79,16 +81,52 @@ def test_workspace_splits_analysis_from_editing() -> None:
     assert t("tab.spectrum") in tabs
     assert t("tab.timeline") in tabs
     assert t("tab.technical") in tabs
-    # Editing is a placeholder for now; both planned tabs are declared.
     assert t("tab.edit.sunofix") in tabs
     assert t("tab.edit.midi") in tabs
     assert tabs.index(t("tab.technical")) < tabs.index(t("tab.group.editing"))
 
 
-def test_sunofix_still_says_it_is_not_implemented() -> None:
-    """A placeholder that reads like a feature is worse than no placeholder."""
-    assert "nothing here runs yet" in get_translator("en")("lead.sunofix").lower()
-    assert "ничего не работает" in get_translator("ru")("lead.sunofix").lower()
+def test_sunofix_no_longer_claims_to_be_unimplemented() -> None:
+    """It used to say so, correctly. Shipping it has to retire the disclaimer."""
+    assert "nothing here runs yet" not in get_translator("en")("lead.sunofix").lower()
+    assert "ничего не работает" not in get_translator("ru")("lead.sunofix").lower()
+
+
+@pytest.mark.parametrize("locale", ["en", "ru"])
+def test_the_sunofix_tab_offers_a_control_for_every_layer(locale: str) -> None:
+    """Repair, preset and fine-tune each have to be reachable, in that order."""
+    t_ = get_translator(locale)
+    config = build_app(locale=locale).get_config_file()
+    labels = [
+        component["props"].get("label")
+        for component in config["components"]
+        if "props" in component
+    ]
+
+    for module in REPAIR_MODULES:
+        assert any(
+            label and t_(f"sunofix.module.{module}") in label for label in labels
+        ), module
+    assert t_("sunofix.preset.label") in labels
+    assert t_("sunofix.warmth.drive") in labels
+    assert t_("sunofix.cleanup.strength") in labels
+
+
+def test_the_masking_risk_is_marked_on_the_boxes_it_applies_to() -> None:
+    """A repair that can fool a detector must not look like the others."""
+    t_ = get_translator("en")
+    config = build_app(locale="en").get_config_file()
+    marked = [
+        component["props"].get("label")
+        for component in config["components"]
+        if "props" in component
+        and isinstance(component["props"].get("label"), str)
+        and t_("sunofix.badge.masking") in component["props"]["label"]
+    ]
+
+    assert len(marked) == len(MASKING_RISK_MODULES)
+    for module in MASKING_RISK_MODULES:
+        assert any(t_(f"sunofix.module.{module}") in label for label in marked)
 
 
 def test_the_weights_licence_is_stated_once_in_full() -> None:

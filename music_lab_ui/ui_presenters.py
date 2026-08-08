@@ -12,6 +12,7 @@ from .disclosure import disclosure_html
 from .i18n import Translator, get_translator
 from .readiness import DETECTOR_REQUIREMENTS, ReadinessReport, can_transcribe
 from .repositories import REPOSITORIES_BY_KEY, PullOutcome, RepoStatus
+from .sunofix import Recommendation, SunoFixResult
 from .telemetry import DetectorTelemetry
 from .ui_service import AnalysisOutcome, RunComparisonOutcome
 
@@ -475,6 +476,142 @@ def artifact_rows(
             ]
         )
     return rows
+
+
+def _strongest_peak_db(metrics: ArtifactMetrics) -> float:
+    return max((peak.prominence_db for peak in metrics.tonal_peaks), default=0.0)
+
+
+def sunofix_reasons(
+    recommendations: Sequence[Recommendation],
+    t: Translator | None = None,
+) -> dict[str, str]:
+    """One sentence per repair module, quoting the number that decided it.
+
+    The interface has to be able to say *why* a box is ticked. A tick with no
+    figure behind it is the interface asserting that it knows better, which is
+    the habit this half of the app exists to avoid.
+    """
+    translate = t or get_translator()
+    lines: dict[str, str] = {}
+    for item in recommendations:
+        suffix = "" if item.recommended else ".none"
+        evidence = item.evidence
+        if item.module == "de_artifact":
+            frequencies = evidence.get("frequencies_hz", ())
+            values = {
+                "prominence": _format_number(evidence.get("prominence_db"), 1),
+                "frequencies": ", ".join(
+                    f"{value / 1000.0:.1f}" for value in frequencies
+                )
+                or "—",
+            }
+        elif item.module == "restore_air":
+            values = {
+                "cutoff": _format_number(evidence.get("cutoff_hz", 0.0) / 1000.0, 1),
+                "slope": _format_number(evidence.get("slope_db_per_octave"), 0),
+            }
+        elif item.module == "fix_transients":
+            values = {"attack": _format_number(evidence.get("attack_db"), 1)}
+        elif item.module == "restore_floor":
+            values = {
+                "floor": _format_number(evidence.get("floor_dbfs"), 1),
+                "flatness": _format_number(evidence.get("flatness"), 2),
+            }
+        else:
+            values = {"correlation": _format_number(evidence.get("correlation_high"), 2)}
+        lines[item.module] = translate(f"sunofix.why.{item.module}{suffix}", **values)
+    return lines
+
+
+def sunofix_delta_rows(
+    before: ArtifactMetrics,
+    after: ArtifactMetrics,
+    t: Translator | None = None,
+) -> list[list[Any]]:
+    """The A/B an edit has to justify itself with.
+
+    Read as `after − before`, on the same measurements the Artifacts tab uses,
+    so a repair that claims to have fixed something has to show it as a number.
+    """
+    translate = t or get_translator()
+    readings: list[tuple[str, float | None, float | None, int]] = [
+        ("table.artifact.attack", before.attack_sharpness_db, after.attack_sharpness_db, 1),
+        (
+            "table.artifact.rolloff",
+            before.rolloff_95_hz / 1000.0,
+            after.rolloff_95_hz / 1000.0,
+            2,
+        ),
+        (
+            "table.artifact.cutoff",
+            before.hf_cutoff_hz / 1000.0,
+            after.hf_cutoff_hz / 1000.0,
+            2,
+        ),
+        (
+            "table.artifact.cliff",
+            before.hf_cliff_db_per_octave,
+            after.hf_cliff_db_per_octave,
+            1,
+        ),
+        ("table.artifact.tonal", _strongest_peak_db(before), _strongest_peak_db(after), 1),
+        ("table.artifact.noise_floor", before.noise_floor_dbfs, after.noise_floor_dbfs, 1),
+        (
+            "table.artifact.flatness",
+            before.noise_floor_flatness,
+            after.noise_floor_flatness,
+            3,
+        ),
+        (
+            "table.artifact.corr_low",
+            before.stereo_correlation_low,
+            after.stereo_correlation_low,
+            2,
+        ),
+        (
+            "table.artifact.corr_high",
+            before.stereo_correlation_high,
+            after.stereo_correlation_high,
+            2,
+        ),
+    ]
+    rows: list[list[Any]] = []
+    for key, left, right, digits in readings:
+        delta = (
+            _format_number(right - left, digits)
+            if left is not None and right is not None
+            else translate("unit.mono")
+        )
+        rows.append(
+            [
+                translate(key),
+                _format_number(left, digits),
+                _format_number(right, digits),
+                delta,
+            ]
+        )
+    return rows
+
+
+def sunofix_summary(result: SunoFixResult, t: Translator | None = None) -> str:
+    """What ran, in the order it ran, and what the level policy decided."""
+    translate = t or get_translator()
+    applied = [step.module for step in result.steps if step.applied]
+    if not applied:
+        return translate("sunofix.status.nothing")
+    gain = result.output_gain_db
+    level = (
+        translate("sunofix.status.level_kept")
+        if gain == 0.0
+        else translate("sunofix.status.level_pulled", gain=f"{gain:.1f}")
+    )
+    return translate(
+        "sunofix.status.done",
+        name=result.output_path.name,
+        modules=", ".join(translate(f"sunofix.module.{module}") for module in applied),
+        level=level,
+    )
 
 
 #: ok -> glyph. `None` is "not checked yet", which deserves its own mark:

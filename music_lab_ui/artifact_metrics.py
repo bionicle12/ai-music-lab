@@ -30,6 +30,20 @@ QUIET_FRAME_PERCENTILE = 10.0
 LOW_BAND_HZ = (40.0, 500.0)
 HIGH_BAND_HZ = (5_000.0, 16_000.0)
 
+TONAL_BAND_HZ = (4_000.0, 11_000.0)
+TONAL_SMOOTHING_OCTAVES = 1.0 / 3.0
+TONAL_MIN_PROMINENCE_DB = 4.0
+TONAL_MIN_SPACING_HZ = 150.0
+TONAL_MAX_PEAKS = 5
+
+
+@dataclass(frozen=True)
+class TonalPeak:
+    """One narrow band sticking out of its own neighbourhood."""
+
+    frequency_hz: float
+    prominence_db: float
+
 
 @dataclass(frozen=True)
 class ArtifactMetrics:
@@ -44,6 +58,9 @@ class ArtifactMetrics:
     noise_floor_flatness: float
     stereo_correlation_low: float | None
     stereo_correlation_high: float | None
+    #: Defaulted so older callers that build this by hand keep working.
+    tonal_peaks: tuple[TonalPeak, ...] = ()
+    hf_cutoff_hz: float = 0.0
 
 
 def _db(values: np.ndarray | float) -> np.ndarray:
@@ -134,6 +151,32 @@ def hf_cliff_db_per_octave(
     return steepest
 
 
+def hf_cutoff_hz(
+    spectrum_db: np.ndarray,
+    frequencies: np.ndarray,
+    reference_band: tuple[float, float] = (1_000.0, 4_000.0),
+    drop_db: float = 25.0,
+) -> float:
+    """Where the top end stops — the position of the wall, not its steepness.
+
+    `hf_cliff_db_per_octave` says how abruptly the spectrum falls; this says at
+    which frequency there is nothing left. A repair needs both: the slope
+    decides whether the cut is a wall at all, the position decides where new
+    material has to start.
+
+    Returns the highest frequency still within `drop_db` of the reference band,
+    or Nyquist when the material never falls that far.
+    """
+    mask = (frequencies >= reference_band[0]) & (frequencies <= reference_band[1])
+    if not np.any(mask) or frequencies.size == 0:
+        return 0.0
+    reference = float(np.median(spectrum_db[mask]))
+    alive = np.nonzero(spectrum_db >= reference - drop_db)[0]
+    if alive.size == 0:
+        return 0.0
+    return float(frequencies[alive[-1]])
+
+
 def noise_floor(
     magnitude: np.ndarray,
     frequencies: np.ndarray,
@@ -162,6 +205,69 @@ def noise_floor(
     arithmetic = float(np.mean(values))
     flatness = geometric / arithmetic if arithmetic > 0 else 0.0
     return level, float(flatness)
+
+
+def _octave_median(
+    spectrum_db: np.ndarray,
+    frequencies: np.ndarray,
+    width_octaves: float,
+) -> np.ndarray:
+    """Spectral envelope: the median level inside a window that grows with pitch.
+
+    Median rather than mean because the peak being measured sits inside its own
+    window — an average would rise with it and hide exactly what is looked for.
+    """
+    spacing = float(np.median(np.diff(frequencies))) if frequencies.size > 1 else 1.0
+    span = 2.0 ** (width_octaves / 2.0) - 2.0 ** (-width_octaves / 2.0)
+    envelope = np.empty_like(spectrum_db)
+    for index, frequency in enumerate(frequencies):
+        half = max(1, int(round(frequency * span / max(spacing, EPSILON) / 2.0)))
+        low = max(0, index - half)
+        high = min(spectrum_db.size, index + half + 1)
+        envelope[index] = np.median(spectrum_db[low:high])
+    return envelope
+
+
+def tonal_peaks(
+    spectrum_db: np.ndarray,
+    frequencies: np.ndarray,
+    band: tuple[float, float] = TONAL_BAND_HZ,
+    min_prominence_db: float = TONAL_MIN_PROMINENCE_DB,
+    min_spacing_hz: float = TONAL_MIN_SPACING_HZ,
+    max_peaks: int = TONAL_MAX_PEAKS,
+) -> tuple[TonalPeak, ...]:
+    """Narrow tonal ridges standing above the local spectral envelope.
+
+    Generators leave steady whistles and ringing partials in the upper mids —
+    audible as a kettle behind the mix, and unlike a real instrument they hold
+    the same frequency for the whole track. Measuring how far each one sticks
+    out of its own third-octave neighbourhood is what lets a repair aim at the
+    frequency instead of dulling the whole band.
+
+    Loudest first; frequencies closer together than `min_spacing_hz` count as
+    one ridge.
+    """
+    mask = (frequencies >= band[0]) & (frequencies <= band[1])
+    if np.count_nonzero(mask) < 8:
+        return ()
+    band_frequencies = frequencies[mask]
+    prominence = spectrum_db[mask] - _octave_median(
+        spectrum_db[mask], band_frequencies, TONAL_SMOOTHING_OCTAVES
+    )
+
+    spacing = float(np.median(np.diff(band_frequencies)))
+    distance = max(1, int(round(min_spacing_hz / max(spacing, EPSILON))))
+    found, _ = signal.find_peaks(
+        prominence, height=min_prominence_db, distance=distance
+    )
+    order = found[np.argsort(prominence[found])[::-1]]
+    return tuple(
+        TonalPeak(
+            frequency_hz=float(band_frequencies[index]),
+            prominence_db=float(prominence[index]),
+        )
+        for index in order[:max_peaks]
+    )
 
 
 def band_stereo_correlation(
@@ -209,6 +315,7 @@ def measure_artifacts(path: Path) -> ArtifactMetrics:
     magnitude = np.abs(spectrum)
     average_power = np.mean(np.square(magnitude, dtype=np.float64), axis=1)
     level, flatness = noise_floor(magnitude, frequencies)
+    average_db = np.asarray(_db(np.sqrt(average_power)))
 
     return ArtifactMetrics(
         name=resolved.name,
@@ -217,12 +324,11 @@ def measure_artifacts(path: Path) -> ArtifactMetrics:
         channels=int(audio.shape[1]),
         attack_sharpness_db=attack_sharpness_db(rms_envelope_db(mono, int(sample_rate))),
         rolloff_95_hz=spectral_rolloff_hz(average_power, frequencies),
-        hf_cliff_db_per_octave=hf_cliff_db_per_octave(
-            np.asarray(_db(np.sqrt(average_power))),
-            frequencies,
-        ),
+        hf_cliff_db_per_octave=hf_cliff_db_per_octave(average_db, frequencies),
         noise_floor_dbfs=level,
         noise_floor_flatness=flatness,
         stereo_correlation_low=band_stereo_correlation(audio, int(sample_rate), LOW_BAND_HZ),
         stereo_correlation_high=band_stereo_correlation(audio, int(sample_rate), HIGH_BAND_HZ),
+        tonal_peaks=tonal_peaks(average_db, frequencies),
+        hf_cutoff_hz=hf_cutoff_hz(average_db, frequencies),
     )

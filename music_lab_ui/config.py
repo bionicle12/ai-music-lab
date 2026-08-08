@@ -27,6 +27,7 @@ class LabPaths:
     runs_dir: Path
     settings_path: Path
     midi_dir: Path
+    sunofix_dir: Path
 
     @classmethod
     def from_root(cls, root: Path) -> "LabPaths":
@@ -79,6 +80,7 @@ class LabPaths:
             runs_dir=resolved / "data" / "runs",
             settings_path=resolved / "data" / "settings.json",
             midi_dir=resolved / "output" / "midi",
+            sunofix_dir=resolved / "output" / "sunofix",
         )
 
 

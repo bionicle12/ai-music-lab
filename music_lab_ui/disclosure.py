@@ -129,6 +129,9 @@ DISCLOSURES: Final[dict[str, Disclosure]] = {
     ),
     "artifacts/compare": Disclosure(prefix="disc.artifacts.compare", tone="warn"),
     "comparison/method": Disclosure(prefix="disc.comparison.method"),
+    # ---- SunoFix -----------------------------------------------------------
+    "sunofix/level": Disclosure(prefix="disc.sunofix.level"),
+    "sunofix/masking": Disclosure(prefix="disc.sunofix.masking", tone="warn"),
     # ---- MIDI --------------------------------------------------------------
     "midi/stems": Disclosure(prefix="disc.midi.stems", tone="warn"),
     "midi/reproducibility": Disclosure(prefix="disc.midi.reproducibility"),

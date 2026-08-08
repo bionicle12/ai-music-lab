@@ -96,10 +96,13 @@ def test_most_of_the_prose_is_behind_a_click(locale: str) -> None:
 def test_the_interface_opens_with_controls_not_an_essay(locale: str) -> None:
     """A ratchet on the absolute count across every tab, label and header.
 
-    Measured at 910 words (English) after the pass. The limit leaves room to
-    add a feature, not to add an essay.
+    Measured at 910 words (English) after the text pass, and at 1132 once
+    SunoFix added a tab with twelve controls of its own. The ratio test above
+    is what caught whether that growth was prose or controls: it stayed at 25%,
+    so the new explanations went behind a click like everything else. The limit
+    leaves room to add a feature, not to add an essay.
     """
-    assert _words(visible_text(build_app(locale=locale))) < 1000
+    assert _words(visible_text(build_app(locale=locale))) < 1200
 
 
 def test_the_disclosure_body_marker_is_what_the_measurement_relies_on() -> None:
