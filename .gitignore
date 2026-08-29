@@ -4,6 +4,7 @@ __pycache__/
 *.py[cod]
 .venv-ui/
 .venv-lofcz/
+.venv-fst/
 models/lofcz/*
 models/fst/*
 !models/lofcz/.gitkeep

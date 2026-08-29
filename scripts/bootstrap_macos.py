@@ -45,6 +45,12 @@ LOFCZ_MODEL_URL = (
 LOFCZ_MODEL_SHA256 = (
     "af7a75c6ed457bc5b6941c8bc76aa06a66d48de40db944b761ed2bebfc0fbbd3"
 )
+FST_STAGE1_SHA256 = (
+    "f9099df5c618a2f92bcd8f4ba48d1c6606f2e4610385b8eea4a03f1a7319629f"
+)
+FST_STAGE2_SHA256 = (
+    "ed133c261c5d367fc6adf53813a5c93b62a59de5bef546cf5899a5c157eba7a0"
+)
 
 
 def sha256(path: Path) -> str:
@@ -53,6 +59,18 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def verify_required_file(path: Path, expected_sha256: str) -> str:
+    target = Path(path)
+    if not target.is_file():
+        raise BootstrapError(f"missing required file: {target}")
+    actual = sha256(target)
+    if actual != expected_sha256:
+        raise BootstrapError(
+            f"checksum mismatch for required {target}: {actual}"
+        )
+    return actual
 
 
 def run(argv: Sequence[str], cwd: Path | None = None) -> None:
@@ -190,17 +208,38 @@ def main() -> int:
         lofcz_python = ensure_environment(
             root, ".venv-lofcz", "ai-music-lofcz-macos.txt"
         )
+        fst_python = ensure_environment(
+            root, ".venv-fst", "ai-music-fst-macos.txt"
+        )
+        run(
+            [
+                str(fst_python),
+                "-c",
+                (
+                    "import torch; "
+                    "assert torch.__version__.startswith('2.8.'); "
+                    "assert torch.backends.mps.is_available()"
+                ),
+            ]
+        )
         heads = {
             spec.folder: prepare_repository(spec, parent) for spec in REPOSITORIES
         }
         model = root / "models" / "lofcz" / "ai_music_detector.onnx"
         download_verified(LOFCZ_MODEL_URL, model, LOFCZ_MODEL_SHA256)
+        fst_stage1 = root / "models" / "fst" / "Stage-1.ckpt"
+        fst_stage2 = root / "models" / "fst" / "Stage-2.ckpt"
+        fst_stage1_hash = verify_required_file(fst_stage1, FST_STAGE1_SHA256)
+        fst_stage2_hash = verify_required_file(fst_stage2, FST_STAGE2_SHA256)
         print("\nmacOS bootstrap complete")
         print(f"UI Python:    {ui_python}")
         print(f"lofcz Python: {lofcz_python}")
+        print(f"FST Python:   {fst_python}")
         for folder, head in heads.items():
             print(f"{folder}: {head}")
         print(f"lofcz model: {sha256(model)}")
+        print(f"FST Stage-1: {fst_stage1_hash}")
+        print(f"FST Stage-2: {fst_stage2_hash}")
         print("Next: ./start_ui.sh")
         return 0
     except (BootstrapError, OSError, subprocess.CalledProcessError) as error:

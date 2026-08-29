@@ -9,9 +9,35 @@ import pytest
 from scripts.bootstrap_macos import (
     BootstrapError,
     download_verified,
+    verify_required_file,
     validate_clone_target,
     validate_existing_clone,
 )
+
+
+def test_required_checkpoint_returns_matching_digest(tmp_path: Path) -> None:
+    path = tmp_path / "Stage.ckpt"
+    path.write_bytes(b"checkpoint")
+    expected = hashlib.sha256(b"checkpoint").hexdigest()
+
+    assert verify_required_file(path, expected) == expected
+
+
+def test_required_checkpoint_rejects_missing_bytes(tmp_path: Path) -> None:
+    with pytest.raises(BootstrapError, match="missing required file"):
+        verify_required_file(tmp_path / "missing.ckpt", "0" * 64)
+
+
+def test_required_checkpoint_rejects_wrong_bytes_without_replacing_them(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "wrong.ckpt"
+    path.write_bytes(b"wrong")
+
+    with pytest.raises(BootstrapError, match="checksum"):
+        verify_required_file(path, "0" * 64)
+
+    assert path.read_bytes() == b"wrong"
 
 
 def init_repository(path: Path) -> str:

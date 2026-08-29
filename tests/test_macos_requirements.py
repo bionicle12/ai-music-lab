@@ -24,3 +24,13 @@ def test_macos_lofcz_snapshot_uses_native_runtime_packages() -> None:
     assert "torchaudio==2.8.0" in text
     assert "pyreadline3" not in text
     assert "+cu128" not in text
+
+
+def test_macos_fst_snapshot_uses_native_torch() -> None:
+    text = requirement_text("ai-music-fst-macos.txt")
+
+    assert "torch==2.8.0" in text
+    assert "torchaudio==2.8.0" in text
+    assert "beat-this @" in text
+    assert "pyreadline3" not in text
+    assert "+cu128" not in text
