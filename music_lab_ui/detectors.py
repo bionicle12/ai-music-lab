@@ -23,6 +23,34 @@ ProgressCallback = Callable[[str, float], None]
 FST_BACKBONE_BATCH = DEFAULT_FST_BACKBONE_BATCH
 
 
+def fst_command(
+    audio: Path,
+    paths: LabPaths,
+    output_directory: Path,
+    backbone_batch: int,
+) -> list[str]:
+    return [
+        str(paths.fst_python),
+        str(paths.fst_adapter),
+        "--upstream",
+        str(paths.fst_upstream),
+        "--stage1",
+        str(paths.fst_stage1),
+        "--stage2",
+        str(paths.fst_stage2),
+        "--audio",
+        str(audio),
+        "--json-output",
+        str(output_directory / "result.json"),
+        "--npz-output",
+        str(output_directory / "telemetry.npz"),
+        "--backbone-batch",
+        str(backbone_batch),
+        "--device",
+        "auto",
+    ]
+
+
 def _error_result(
     detector: str,
     message: str,
@@ -231,24 +259,7 @@ def run_fst(
         output = Path(temp_dir) / "result.json"
         arrays_output = Path(temp_dir) / "telemetry.npz"
         completed = subprocess.run(
-            [
-                str(paths.fst_python),
-                str(paths.fst_adapter),
-                "--upstream",
-                str(paths.fst_upstream),
-                "--stage1",
-                str(paths.fst_stage1),
-                "--stage2",
-                str(paths.fst_stage2),
-                "--audio",
-                str(audio),
-                "--json-output",
-                str(output),
-                "--npz-output",
-                str(arrays_output),
-                "--backbone-batch",
-                str(backbone_batch),
-            ],
+            fst_command(audio, paths, Path(temp_dir), backbone_batch),
             cwd=paths.root,
             capture_output=True,
             text=True,

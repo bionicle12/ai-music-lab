@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from music_lab_ui.config import LabPaths
-from music_lab_ui.detectors import run_fst, run_lofcz
+from music_lab_ui.detectors import fst_command, run_fst, run_lofcz
 
 
 def base_paths(tmp_path: Path) -> LabPaths:
@@ -24,6 +24,19 @@ def base_paths(tmp_path: Path) -> LabPaths:
     for name in ("model.py", "inference.py", "preprocess.py"):
         (paths.fst_upstream / name).write_text("", encoding="utf-8")
     return paths
+
+
+def test_fst_command_passes_auto_device_and_actual_batch(tmp_path: Path) -> None:
+    paths = LabPaths.from_root(tmp_path / "ai-music-lab")
+
+    command = fst_command(
+        tmp_path / "audio.wav",
+        paths,
+        tmp_path,
+        backbone_batch=2,
+    )
+
+    assert command[-4:] == ["--backbone-batch", "2", "--device", "auto"]
 
 
 def test_run_lofcz_normalizes_real_csv_subprocess(tmp_path: Path) -> None:
@@ -115,6 +128,7 @@ parser.add_argument("--audio")
 parser.add_argument("--json-output")
 parser.add_argument("--npz-output")
 parser.add_argument("--backbone-batch", type=int)
+parser.add_argument("--device")
 args = parser.parse_args()
 with open(args.json_output, "w", encoding="utf-8") as target:
     json.dump({

@@ -4,16 +4,16 @@ import sys
 import numpy as np
 import pytest
 
-from music_lab_ui import detectors
-
 from adapters import fst_cli
 from adapters.fst_cli import (
     DEFAULT_BACKBONE_BATCH,
     DetectorPaths,
     DevicePlan,
     MpsMemoryTracker,
+    build_payload,
     build_parser,
     mean_fusion_gate,
+    format_accelerator_error,
     platform_default_backbone_batch,
     self_similarity_matrix,
     select_device_plan,
@@ -114,6 +114,118 @@ def test_cli_rejects_invalid_mps_memory_fraction() -> None:
                 "--audio", "c", "--mps-memory-fraction", "0",
             ]
         )
+
+
+def test_result_payload_records_staged_device_and_memory_plan(
+    tmp_path: Path,
+) -> None:
+    plan = DevicePlan("mps", "cpu", "mps", "mps", 0.75)
+    memory = {
+        "fraction": 0.75,
+        "allocation_ceiling_bytes": 15_000,
+        "samples": [],
+    }
+    payload = build_payload(
+        result={"prediction": "Fake", "fake_probability": "0.9"},
+        paths=DetectorPaths(
+            tmp_path / "upstream",
+            tmp_path / "Stage-1.ckpt",
+            tmp_path / "Stage-2.ckpt",
+            tmp_path / "audio.wav",
+        ),
+        plan=plan,
+        device_name="mps",
+        backbone_batch=2,
+        valid_segments=12,
+        memory=memory,
+    )
+
+    assert payload["device"] == "mps"
+    assert payload["device_plan"] == {
+        "device": "mps",
+        "beat_device": "cpu",
+        "stage1_device": "mps",
+        "stage2_device": "mps",
+    }
+    scalars = payload["telemetry"]["scalars"]
+    assert scalars["beat_device"] == "cpu"
+    assert scalars["stage1_device"] == "mps"
+    assert scalars["stage2_device"] == "mps"
+    assert scalars["backbone_batch"] == 2
+    assert scalars["memory"] == memory
+
+
+def test_mps_oom_reports_limit_and_next_smaller_batch() -> None:
+    plan = DevicePlan("mps", "cpu", "mps", "mps", 0.75)
+    message = format_accelerator_error(
+        RuntimeError("MPS backend out of memory"),
+        stage="stage1_batch_2",
+        plan=plan,
+        backbone_batch=2,
+        memory={
+            "fraction": 0.75,
+            "allocation_ceiling_bytes": 15_000,
+            "samples": [{"stage": "stage1_batch_1", "driver_bytes": 14_000}],
+        },
+    )
+
+    assert "stage1_batch_2" in message
+    assert "batch=2" in message
+    assert "fraction=0.75" in message
+    assert "ceiling=15000" in message
+    assert "try --backbone-batch 1" in message
+
+
+def test_unsupported_operator_keeps_original_error_and_stage() -> None:
+    plan = DevicePlan("mps", "cpu", "mps", "mps", 0.75)
+    message = format_accelerator_error(
+        RuntimeError("aten::some_op is not implemented for MPS"),
+        stage="stage2_inference",
+        plan=plan,
+        backbone_batch=2,
+        memory=None,
+    )
+
+    assert message == (
+        "FST mps failed during stage2_inference: "
+        "aten::some_op is not implemented for MPS"
+    )
+
+
+def test_main_forwards_device_and_fraction_to_analysis(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received: dict[str, object] = {}
+
+    def fake_analyze(
+        paths: DetectorPaths,
+        backbone_batch: int,
+        requested_device: str,
+        mps_memory_fraction_value: float,
+    ) -> tuple[dict[str, object], dict[str, np.ndarray]]:
+        received.update(
+            paths=paths,
+            backbone_batch=backbone_batch,
+            requested_device=requested_device,
+            mps_memory_fraction_value=mps_memory_fraction_value,
+        )
+        return {"prediction": "Real"}, {}
+
+    monkeypatch.setattr(fst_cli, "analyze", fake_analyze)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "fst_cli.py", "--upstream", "u", "--stage1", "a",
+            "--stage2", "b", "--audio", "c", "--backbone-batch", "4",
+            "--device", "mps", "--mps-memory-fraction", "0.6",
+        ],
+    )
+
+    assert fst_cli.main() == 0
+    assert received["backbone_batch"] == 4
+    assert received["requested_device"] == "mps"
+    assert received["mps_memory_fraction_value"] == 0.6
 
 
 def test_validate_paths_accepts_complete_layout(tmp_path: Path) -> None:
@@ -224,20 +336,3 @@ def test_the_upstream_batch_is_still_reachable() -> None:
     )
 
     assert parsed.backbone_batch == 0
-
-
-def test_the_run_records_which_batch_size_produced_it() -> None:
-    """The batch size can move the raw logit by one float16 ulp, so a saved
-    score that cannot say which one it used is not reproducible."""
-    source = Path(fst_cli.__file__).read_text(encoding="utf-8")
-
-    assert '"backbone_batch": step' in source
-
-
-def test_the_interface_passes_the_batch_size_explicitly() -> None:
-    """Relying on the adapter default would leave the value out of the command
-    line, and the command line is what documents a run."""
-    source = Path(detectors.__file__).read_text(encoding="utf-8")
-
-    assert "--backbone-batch" in source
-    assert detectors.FST_BACKBONE_BATCH == DEFAULT_BACKBONE_BATCH

@@ -345,13 +345,16 @@ def test_the_run_records_the_settings_it_was_measured_with(tmp_path: Path) -> No
     same way. The FST batch size can move the raw logit, so a saved run that
     cannot name it is not reproducible."""
     service = service_fixture(tmp_path)
+    service.save_settings(
+        replace(service.settings(), fst_backbone_batch=4)
+    )
     audio = tmp_path / "version.wav"
     write_tone(audio)
 
     outcome = service.analyze(str(audio), ["lofcz"], "")
 
     saved = json.loads(outcome.run.result_path.read_text(encoding="utf-8"))
-    assert saved["settings"]["fst_backbone_batch"] == 8
+    assert saved["settings"]["fst_backbone_batch"] == 4
     assert outcome.settings == saved["settings"]
 
 
