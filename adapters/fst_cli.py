@@ -19,6 +19,94 @@ def platform_default_backbone_batch(platform_name: str | None = None) -> int:
 #: Segments per backbone forward pass. ``0`` restores the upstream single-batch
 #: behaviour; macOS starts smaller because MPS shares memory with the system.
 DEFAULT_BACKBONE_BATCH = platform_default_backbone_batch()
+DEFAULT_MPS_MEMORY_FRACTION = 0.75
+
+
+@dataclass(frozen=True)
+class DevicePlan:
+    device: str
+    beat_device: str
+    stage1_device: str
+    stage2_device: str
+    mps_memory_fraction: float | None
+
+
+def select_device_plan(
+    requested: str,
+    cuda_available: bool,
+    mps_available: bool,
+) -> DevicePlan:
+    selected = requested
+    if selected == "auto":
+        if cuda_available:
+            selected = "cuda"
+        elif mps_available:
+            selected = "mps"
+        else:
+            raise RuntimeError("FST requires CUDA or MPS acceleration")
+    if selected == "cuda":
+        if not cuda_available:
+            raise RuntimeError("CUDA is unavailable in the FST environment")
+        return DevicePlan("cuda", "cuda", "cuda", "cuda", None)
+    if selected == "mps":
+        if not mps_available:
+            raise RuntimeError("MPS is unavailable in the FST environment")
+        return DevicePlan(
+            "mps",
+            "cpu",
+            "mps",
+            "mps",
+            DEFAULT_MPS_MEMORY_FRACTION,
+        )
+    raise ValueError(f"unsupported FST device: {requested}")
+
+
+def validate_batch_for_device(batch: int, plan: DevicePlan) -> None:
+    if plan.device == "mps" and batch == 0:
+        raise ValueError("batch 0 is not supported on MPS; choose 1, 2, 4, or 8")
+
+
+class MpsMemoryTracker:
+    def __init__(self, api: Any, fraction: float) -> None:
+        self.api = api
+        self.fraction = fraction
+        self.recommended_max_bytes = 0
+        self.samples: list[dict[str, int | str]] = []
+
+    def configure(self) -> None:
+        self.api.set_per_process_memory_fraction(self.fraction)
+        self.recommended_max_bytes = int(self.api.recommended_max_memory())
+
+    def sample(self, stage: str) -> None:
+        self.api.synchronize()
+        self.samples.append(
+            {
+                "stage": stage,
+                "current_bytes": int(self.api.current_allocated_memory()),
+                "driver_bytes": int(self.api.driver_allocated_memory()),
+            }
+        )
+
+    def summary(self) -> dict[str, Any]:
+        current = [int(item["current_bytes"]) for item in self.samples]
+        driver = [int(item["driver_bytes"]) for item in self.samples]
+        return {
+            "fraction": self.fraction,
+            "recommended_max_bytes": self.recommended_max_bytes,
+            "allocation_ceiling_bytes": int(
+                self.recommended_max_bytes * self.fraction
+            ),
+            "sampled_peak_current_bytes": max(current, default=0),
+            "sampled_peak_driver_bytes": max(driver, default=0),
+            "samples": list(self.samples),
+        }
+
+
+def mps_memory_fraction(value: str) -> float:
+    fraction = float(value)
+    if not 0 < fraction <= 1:
+        raise argparse.ArgumentTypeError("MPS memory fraction must be in (0, 1]")
+    return fraction
 
 
 @dataclass(frozen=True)
@@ -265,6 +353,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--audio", type=Path, required=True)
     parser.add_argument("--json-output", type=Path)
     parser.add_argument("--npz-output", type=Path)
+    parser.add_argument(
+        "--device",
+        choices=("auto", "cuda", "mps"),
+        default="auto",
+    )
+    parser.add_argument(
+        "--mps-memory-fraction",
+        type=mps_memory_fraction,
+        default=DEFAULT_MPS_MEMORY_FRACTION,
+    )
     parser.add_argument(
         "--backbone-batch",
         type=int,

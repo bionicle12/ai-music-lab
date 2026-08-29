@@ -10,15 +10,110 @@ from adapters import fst_cli
 from adapters.fst_cli import (
     DEFAULT_BACKBONE_BATCH,
     DetectorPaths,
+    DevicePlan,
+    MpsMemoryTracker,
     build_parser,
     mean_fusion_gate,
     platform_default_backbone_batch,
     self_similarity_matrix,
+    select_device_plan,
     stage1_class_probabilities,
     upstream_import_context,
     validate_paths,
+    validate_batch_for_device,
     validate_segments,
 )
+
+
+class FakeMpsApi:
+    def __init__(
+        self,
+        recommended: int,
+        samples: list[tuple[int, int]],
+    ) -> None:
+        self.recommended = recommended
+        self.samples = iter(samples)
+        self.fractions: list[float] = []
+        self.synchronize_calls = 0
+        self._sample = (0, 0)
+
+    def set_per_process_memory_fraction(self, fraction: float) -> None:
+        self.fractions.append(fraction)
+
+    def synchronize(self) -> None:
+        self.synchronize_calls += 1
+        self._sample = next(self.samples)
+
+    def recommended_max_memory(self) -> int:
+        return self.recommended
+
+    def current_allocated_memory(self) -> int:
+        return self._sample[0]
+
+    def driver_allocated_memory(self) -> int:
+        return self._sample[1]
+
+
+def test_auto_prefers_existing_cuda_pipeline() -> None:
+    plan = select_device_plan("auto", cuda_available=True, mps_available=True)
+
+    assert plan == DevicePlan("cuda", "cuda", "cuda", "cuda", None)
+
+
+def test_auto_uses_cpu_beats_and_mps_models_on_apple() -> None:
+    plan = select_device_plan("auto", cuda_available=False, mps_available=True)
+
+    assert plan == DevicePlan("mps", "cpu", "mps", "mps", 0.75)
+
+
+def test_no_accelerator_is_an_explicit_error() -> None:
+    with pytest.raises(RuntimeError, match="CUDA or MPS"):
+        select_device_plan("auto", cuda_available=False, mps_available=False)
+
+
+def test_mps_rejects_upstream_all_at_once_batch() -> None:
+    plan = DevicePlan("mps", "cpu", "mps", "mps", 0.75)
+
+    with pytest.raises(ValueError, match="batch 0"):
+        validate_batch_for_device(0, plan)
+
+
+def test_mps_tracker_records_ordered_samples_and_sampled_peaks() -> None:
+    api = FakeMpsApi(
+        recommended=20_000,
+        samples=[(100, 200), (400, 700), (250, 500)],
+    )
+    tracker = MpsMemoryTracker(api, fraction=0.75)
+
+    tracker.configure()
+    tracker.sample("initialized")
+    tracker.sample("stage1_batch_1")
+    tracker.sample("stage1_released")
+
+    assert api.fractions == [0.75]
+    assert api.synchronize_calls == 3
+    assert tracker.summary() == {
+        "fraction": 0.75,
+        "recommended_max_bytes": 20_000,
+        "allocation_ceiling_bytes": 15_000,
+        "sampled_peak_current_bytes": 400,
+        "sampled_peak_driver_bytes": 700,
+        "samples": [
+            {"stage": "initialized", "current_bytes": 100, "driver_bytes": 200},
+            {"stage": "stage1_batch_1", "current_bytes": 400, "driver_bytes": 700},
+            {"stage": "stage1_released", "current_bytes": 250, "driver_bytes": 500},
+        ],
+    }
+
+
+def test_cli_rejects_invalid_mps_memory_fraction() -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            [
+                "--upstream", "u", "--stage1", "a", "--stage2", "b",
+                "--audio", "c", "--mps-memory-fraction", "0",
+            ]
+        )
 
 
 def test_validate_paths_accepts_complete_layout(tmp_path: Path) -> None:
