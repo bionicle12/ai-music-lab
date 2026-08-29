@@ -104,9 +104,8 @@ pool; see [Platform](#platform).
 
 ## Quick start
 
-The full detector stack needs Windows with an NVIDIA GPU,
-[Conda](https://docs.conda.io/projects/miniconda/), and Git. Apple Silicon macOS currently
-supports the UI, model-free analysis, and lofcz through project-local virtual environments.
+The detector stack runs on Windows/NVIDIA through Conda and on Apple Silicon macOS through
+project-local virtual environments. FST uses CUDA on Windows and a staged CPU→MPS path on Mac.
 
 ### How the pieces fit together
 
@@ -158,9 +157,10 @@ chmod +x bootstrap_macos.sh start_ui.sh
 ./start_ui.sh
 ```
 
-The bootstrap creates `.venv-ui` and `.venv-lofcz`, prepares the pinned detector clones next
-to this repository, and downloads and verifies the lofcz model. FST on MPS and muscriptor on
-macOS are separate follow-up milestones.
+The bootstrap creates `.venv-ui`, `.venv-lofcz`, and `.venv-fst`, prepares the pinned detector
+clones, verifies native MPS, downloads lofcz, and checks the two manually downloaded FST
+checkpoint hashes. See [Getting started](docs/getting-started.md) for their paths and measured
+memory. muscriptor remains a separate macOS follow-up.
 
 On Windows:
 
@@ -236,7 +236,8 @@ whatever is missing. FST's backbone batch is the first such parameter, and the s
 used are written into the run file, because a saved score should always be able to say what
 produced it. Thresholds and window lengths are still adapter defaults.
 
-**macOS.** Planned, not promised, and gated on hardware — see just below.
+**macOS.** UI, lofcz, model-free analysis and FST/MPS are implemented and measured; muscriptor
+remains the next platform milestone.
 
 ## What this is not
 
@@ -280,15 +281,13 @@ activity, transcribing music you hold no rights to included. See
 
 ## Platform
 
-The full stack is built and measured on Windows with an RTX 4090. Apple Silicon macOS has a
-native launcher and supports the interface, model-free analysis, and lofcz. Everything runs
-locally; no audio is uploaded anywhere.
-
-FST still requires CUDA in this milestone and therefore remains Windows-only. Its adapter
-already slices the fixed 48-segment backbone pass to reduce the measured CUDA peak from about
-16 GB to 4.8 GB at a batch of eight. The MPS follow-up will keep that control but must measure
-unified-memory use on Apple hardware rather than treating the CUDA number as a guarantee.
-muscriptor is also not yet included in the macOS bootstrap.
+The detector stack is measured on Windows with an RTX 4090 and on a 24 GB Apple Silicon Mac.
+Everything runs locally; no audio is uploaded anywhere. On macOS, Beat This runs on CPU,
+Stage-1 runs in bounded MPS batches, is released, and Stage-2 then runs on MPS. PyTorch uses a
+`0.75` memory fraction and batch `2` by default. The cached 32-second smoke took `15.53 s` with
+a sampled MPS driver peak of `2,278,309,888` bytes (about `2.12 GiB`) under a
+`14,302,248,960` byte ceiling. Batch `4` and `8` also completed on that short fixture, but are
+not the default. No global CPU fallback is enabled. muscriptor is not yet in macOS bootstrap.
 
 ## License
 

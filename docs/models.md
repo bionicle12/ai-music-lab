@@ -31,6 +31,12 @@ On Windows:
 Get-FileHash models\fst\Stage-1.ckpt -Algorithm SHA256
 ```
 
+On macOS:
+
+```bash
+shasum -a 256 models/fst/Stage-1.ckpt models/fst/Stage-2.ckpt
+```
+
 ## Regenerating the manifest
 
 `artifacts/model-manifest.json` records the hashes of the files actually present on disk:
@@ -44,9 +50,10 @@ which weights produced it.
 
 ## Additional weights
 
-FST also pulls MERT embedding weights from Hugging Face on first run. They land in the standard
-Hugging Face cache rather than in `models/`, so the first FST analysis after a fresh install
-takes noticeably longer than later ones.
+FST also pulls MERT embedding weights from Hugging Face and Beat This `final0.ckpt` through
+Torch Hub on first run. They land in the standard user caches rather than in `models/`, so the
+first FST analysis after a fresh install takes noticeably longer than later ones. The macOS
+bootstrap verifies the two local FST files before inference; it does not download them.
 
 ## Transcription weights (muscriptor)
 

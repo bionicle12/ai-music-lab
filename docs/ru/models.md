@@ -31,6 +31,12 @@
 Get-FileHash models\fst\Stage-1.ckpt -Algorithm SHA256
 ```
 
+Под macOS:
+
+```bash
+shasum -a 256 models/fst/Stage-1.ckpt models/fst/Stage-2.ckpt
+```
+
 ## Пересоздание манифеста
 
 `artifacts/model-manifest.json` фиксирует хэши файлов, реально лежащих на диске:
@@ -44,9 +50,10 @@ conda run -n ai-music-fst python scripts\write_model_manifest.py --output artifa
 
 ## Дополнительные веса
 
-FST дополнительно скачивает веса эмбеддингов MERT с Hugging Face при первом запуске. Они
-попадают в стандартный кэш Hugging Face, а не в `models/`, поэтому первый анализ FST после
-чистой установки заметно дольше последующих.
+FST при первом запуске дополнительно скачивает веса MERT с Hugging Face и `final0.ckpt` Beat
+This через Torch Hub. Они попадают в штатные пользовательские кэши, а не в `models/`, поэтому
+первый анализ заметно дольше следующих. macOS-bootstrap проверяет два локальных FST-файла до
+inference, но сам их не скачивает.
 
 ## Лицензирование
 

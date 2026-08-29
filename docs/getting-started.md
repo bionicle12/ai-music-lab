@@ -6,8 +6,8 @@
 
 | Requirement | Why |
 | --- | --- |
-| Windows or Apple Silicon macOS | macOS currently supports UI, model-free analysis and lofcz |
-| NVIDIA GPU + driver | Required for FST; a 32-second file takes about 19 s on an RTX 4090 |
+| Windows or Apple Silicon macOS | macOS supports UI, model-free analysis, lofcz and FST on MPS |
+| NVIDIA GPU + driver | Required for FST on Windows; Apple Silicon uses MPS |
 | [Conda](https://docs.conda.io/projects/miniconda/) | Windows only; macOS uses project-local venvs |
 | Git | The two upstream detectors are cloned, not vendored |
 
@@ -38,7 +38,8 @@ remaining steps carry on from there.
 
 ## Apple Silicon macOS quick start
 
-Install Homebrew Python 3.11 and Git, then run from this repository:
+Install Homebrew Python 3.11 and Git. Download `Stage-1.ckpt` and
+`Stage-2.ckpt` from [Models](models.md), place them under `models/fst/`, then run:
 
 ```bash
 chmod +x bootstrap_macos.sh start_ui.sh
@@ -46,10 +47,16 @@ chmod +x bootstrap_macos.sh start_ui.sh
 ./start_ui.sh
 ```
 
-The idempotent bootstrap creates `.venv-ui` and `.venv-lofcz`, clones both detector upstreams
-next to this repository at the recorded commits, and downloads and verifies the lofcz ONNX
-model. This milestone supports the UI, model-free metrics, and lofcz. FST/MPS and muscriptor
-are not installed yet. The remaining numbered sections describe the full Windows setup.
+The idempotent bootstrap creates `.venv-ui`, `.venv-lofcz`, and `.venv-fst`, clones both
+detector upstreams at the recorded commits, verifies MPS, downloads and verifies lofcz, and
+checks both manually downloaded FST hashes. It never replaces a mismatched checkpoint.
+muscriptor remains Windows-only. The remaining numbered sections describe the Windows setup.
+
+On the measured 24 GB Mac, FST uses CPU for Beat This and MPS for Stage-1 and Stage-2. The
+default Stage-1 batch is `2`; PyTorch is limited to `0.75` of its recommended MPS memory
+(`14,302,248,960` bytes on this host). A cached 32-second, 12-segment smoke took `15.53 s` and
+sampled a `2,278,309,888` byte MPS driver peak. Batch `4` and `8` also completed on this short
+fixture, but `2` remains the safe default because that is not a long-track guarantee.
 
 ## 1. Clone the wrapper and the upstreams
 
@@ -177,7 +184,12 @@ calling the module directly — the encoding setup lives in that script.
 beats and downbeats; vocals, ambience and pads often have none. Use lofcz for that material.
 See [Limitations](limitations.md).
 
-**FST is slow on first run.** It downloads MERT weights into the Hugging Face cache once.
+**FST is slow on first run.** It downloads MERT and Beat This weights into their normal caches
+once. The measured first run took `107.57 s`; the cached repeat took `15.53 s`.
+
+**FST reports MPS out of memory.** Lower the FST backbone batch in its settings dialog: use
+`1` after `2`, `2` after `4`, or `4` after `8`. Do not use batch `0` on MPS. The saved run
+records the fraction, ceiling, current stage and sampled allocator memory.
 
 **Re-creating just the UI environment:**
 
@@ -188,9 +200,9 @@ conda run -n ai-music-ui python -m pip install -r environments\ai-music-ui.txt
 
 ## Platform note
 
-The full FST and muscriptor stack is built and measured on Windows with a single RTX 4090.
-Apple Silicon macOS supports the UI, model-free analysis, and lofcz through the bootstrap above.
-FST/MPS and muscriptor remain follow-up milestones.
+FST is built and measured on Windows/CUDA and Apple Silicon/MPS. On macOS, Beat This stays on
+CPU, Stage-1 runs in bounded MPS batches, its model and cache are released, and Stage-2 then
+runs on MPS. No global MPS-to-CPU fallback is enabled. muscriptor remains a follow-up milestone.
 
 ## Pinned environment
 
@@ -200,9 +212,9 @@ FST/MPS and muscriptor remain follow-up milestones.
 | FST upstream | `b564f8be8b3db6b7810c2aab61f0b4f86f889579` |
 | muscriptor upstream | `e2bd0fc5994f9acba7c1387ca5df67eb8d95df44` (`0.2.2`) |
 | Python | `3.11` |
-| PyTorch / TorchAudio | `2.8.0+cu128` in the detector environments |
+| PyTorch / TorchAudio | Windows `2.8.0+cu128`; macOS FST `2.8.0` native ARM64 |
 | Gradio | `6.20.0` |
-| GPU | NVIDIA GeForce RTX 4090 |
+| Accelerator | NVIDIA GeForce RTX 4090 or Apple MPS (measured on 24 GB unified memory) |
 
 TorchAudio is held at 2.8 deliberately: upstream uses the old `torchaudio.load` path, and from
 2.9 onwards that path requires TorchCodec plus a separate full-shared FFmpeg build on Windows.

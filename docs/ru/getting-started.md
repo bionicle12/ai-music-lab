@@ -6,8 +6,8 @@
 
 | Требование | Зачем |
 | --- | --- |
-| Windows или Apple Silicon macOS | На macOS сейчас работают UI, анализ без моделей и lofcz |
-| Видеокарта NVIDIA + драйвер | Нужна для FST; 32-секундный файл занимает около 19 с на RTX 4090 |
+| Windows или Apple Silicon macOS | На macOS работают UI, анализ без моделей, lofcz и FST через MPS |
+| Видеокарта NVIDIA + драйвер | Нужна для FST под Windows; Apple Silicon использует MPS |
 | [Conda](https://docs.conda.io/projects/miniconda/) | Только Windows; macOS использует локальные venv |
 | Git | Оба детектора клонируются, а не включаются в репозиторий |
 
@@ -37,7 +37,8 @@ backend `soundfile`. Windows Developer Mode необязателен: без н�
 
 ## Быстрый старт на Apple Silicon macOS
 
-Установите Homebrew Python 3.11 и Git, затем выполните из этого репозитория:
+Установите Homebrew Python 3.11 и Git. Скачайте `Stage-1.ckpt` и `Stage-2.ckpt`
+по ссылкам из раздела [Модели](models.md), положите в `models/fst/`, затем выполните:
 
 ```bash
 chmod +x bootstrap_macos.sh start_ui.sh
@@ -45,10 +46,16 @@ chmod +x bootstrap_macos.sh start_ui.sh
 ./start_ui.sh
 ```
 
-Идемпотентный bootstrap создаёт `.venv-ui` и `.venv-lofcz`, клонирует оба upstream-детектора
-рядом с репозиторием на зафиксированных коммитах, скачивает и проверяет ONNX-модель lofcz.
-На этом этапе поддерживаются UI, метрики без моделей и lofcz. FST/MPS и muscriptor пока не
-устанавливаются. Остальные нумерованные разделы описывают полный запуск на Windows.
+Идемпотентный bootstrap создаёт `.venv-ui`, `.venv-lofcz` и `.venv-fst`, фиксирует оба
+upstream-детектора на записанных коммитах, проверяет MPS, скачивает и проверяет lofcz, а также
+проверяет хэши обоих вручную скачанных FST checkpoint. Файл с неверным хэшем он не заменяет.
+muscriptor пока остаётся Windows-only. Остальные разделы описывают установку под Windows.
+
+На измеренном Mac с 24 ГБ Beat This работает на CPU, а Stage-1 и Stage-2 — на MPS. Безопасный
+default batch равен `2`; PyTorch ограничен долей `0.75` от рекомендованной MPS-памяти
+(`14 302 248 960` байт на этом ноутбуке). Прогретый 32-секундный smoke на 12 сегментах занял
+`15,53 с`, sampled driver peak — `2 278 309 888` байт. Batch `4` и `8` на коротком fixture тоже
+прошли, но это не гарантия для длинного трека, поэтому default остаётся `2`.
 
 ## 1. Клонировать обёртку и апстримы
 
@@ -176,7 +183,12 @@ Python-процесса — без этого Windows PowerShell 5.1 превр�
 и сильные доли, а у вокала, ambience и пэдов их часто нет. Для такого материала используйте
 lofcz. См. [Ограничения](limitations.md).
 
-**FST медленный при первом запуске.** Он один раз докачивает веса MERT в кэш Hugging Face.
+**FST медленный при первом запуске.** Он один раз докачивает веса MERT и Beat This в штатные
+кэши. Измеренный первый прогон занял `107,57 с`, повтор из кэша — `15,53 с`.
+
+**FST сообщает нехватку MPS-памяти.** Уменьшите batch backbone в настройках FST: `1` после
+`2`, `2` после `4`, `4` после `8`. Batch `0` на MPS запрещён. Сохранённый запуск содержит
+долю, потолок, текущую стадию и sampled allocator memory.
 
 **Пересоздать только UI-среду:**
 
@@ -187,9 +199,9 @@ conda run -n ai-music-ui python -m pip install -r environments\ai-music-ui.txt
 
 ## Примечание о платформе
 
-Полный стек FST и muscriptor собран и измерен на Windows с RTX 4090. На Apple Silicon macOS
-через bootstrap выше поддерживаются UI, анализ без моделей и lofcz. FST/MPS и muscriptor
-остаются следующими этапами.
+FST собран и измерен под Windows/CUDA и Apple Silicon/MPS. На macOS Beat This остаётся на CPU,
+Stage-1 работает ограниченными MPS-батчами и освобождается перед Stage-2, который также идёт
+на MPS. Глобальный MPS→CPU fallback не включается. muscriptor остаётся следующим этапом.
 
 ## Зафиксированное окружение
 
@@ -199,9 +211,9 @@ conda run -n ai-music-ui python -m pip install -r environments\ai-music-ui.txt
 | upstream FST | `b564f8be8b3db6b7810c2aab61f0b4f86f889579` |
 | upstream muscriptor | `e2bd0fc5994f9acba7c1387ca5df67eb8d95df44` (`0.2.2`) |
 | Python | `3.11` |
-| PyTorch / TorchAudio | `2.8.0+cu128` в средах детекторов |
+| PyTorch / TorchAudio | Windows `2.8.0+cu128`; macOS FST `2.8.0` native ARM64 |
 | Gradio | `6.20.0` |
-| GPU | NVIDIA GeForce RTX 4090 |
+| Ускоритель | NVIDIA GeForce RTX 4090 или Apple MPS (замерено на 24 ГБ общей памяти) |
 
 TorchAudio намеренно зафиксирован на 2.8: upstream использует старый путь `torchaudio.load`, а начиная
 с 2.9 он требует TorchCodec и отдельную full-shared сборку FFmpeg под Windows. Среда muscriptor
