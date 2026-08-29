@@ -102,6 +102,9 @@ Host RAM is not the constraint on Windows — the interface itself sits around 0
 checkpoints live on the GPU. It becomes the constraint on Apple Silicon, where the two are one
 pool; see [Platform](#platform).
 
+> **macOS support added.** The UI, lofcz, and the FST/MPS path have been tested on the author's
+> Apple Silicon Mac with 24 GB of unified memory.
+
 ## Quick start
 
 The detector stack runs on Windows/NVIDIA through Conda and on Apple Silicon macOS through
