@@ -93,6 +93,18 @@ def test_dirty_clone_is_refused_without_modifying_it(tmp_path: Path) -> None:
     assert tracked.read_text(encoding="utf-8") == "my local change\n"
 
 
+def test_untracked_finder_metadata_does_not_block_existing_clone(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "upstream"
+    commit = init_repository(target)
+    metadata = target / ".DS_Store"
+    metadata.write_bytes(b"finder")
+
+    assert validate_existing_clone(target, commit) == commit
+    assert metadata.read_bytes() == b"finder"
+
+
 def test_existing_matching_file_is_accepted(tmp_path: Path) -> None:
     destination = tmp_path / "model.onnx"
     destination.write_bytes(b"known")

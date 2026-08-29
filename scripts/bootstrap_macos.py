@@ -112,7 +112,20 @@ def validate_existing_clone(path: Path, commit: str) -> str:
     target = Path(path)
     try:
         git_output(target, "rev-parse", "--git-dir")
-        dirty = git_output(target, "status", "--porcelain")
+        status = git_output(
+            target,
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+        )
+        dirty = "\n".join(
+            line
+            for line in status.splitlines()
+            if not (
+                line.startswith("?? ")
+                and Path(line[3:]).name == ".DS_Store"
+            )
+        )
         head = git_output(target, "rev-parse", "HEAD")
     except (OSError, subprocess.CalledProcessError) as error:
         raise BootstrapError(f"{target} is not an existing Git clone") from error
