@@ -1,6 +1,38 @@
 from pathlib import Path
 
-from music_lab_ui.config import LabPaths
+from music_lab_ui.config import LabPaths, environment_python
+
+
+def test_project_local_posix_environment_is_the_default(tmp_path: Path) -> None:
+    assert environment_python(
+        tmp_path,
+        "ai-music-lofcz",
+        {},
+        "AI_MUSIC_LOFCZ_PYTHON",
+        "posix",
+    ) == tmp_path / ".venv-lofcz" / "bin" / "python"
+
+
+def test_windows_conda_default_is_preserved(tmp_path: Path) -> None:
+    assert environment_python(
+        tmp_path,
+        "ai-music-lofcz",
+        {},
+        "AI_MUSIC_LOFCZ_PYTHON",
+        "nt",
+        envs_dir=tmp_path / "conda" / "envs",
+    ) == tmp_path / "conda" / "envs" / "ai-music-lofcz" / "python.exe"
+
+
+def test_interpreter_override_wins_on_every_platform(tmp_path: Path) -> None:
+    chosen = tmp_path / "custom-python"
+    assert environment_python(
+        tmp_path,
+        "ai-music-fst",
+        {"AI_MUSIC_FST_PYTHON": str(chosen)},
+        "AI_MUSIC_FST_PYTHON",
+        "posix",
+    ) == chosen
 
 
 def test_lab_paths_resolve_sibling_repositories(tmp_path: Path) -> None:

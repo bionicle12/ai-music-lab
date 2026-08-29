@@ -2,8 +2,33 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+
+
+def environment_python(
+    root: Path,
+    environment_name: str,
+    environ: Mapping[str, str],
+    override_name: str,
+    os_name: str,
+    *,
+    envs_dir: Path | None = None,
+) -> Path:
+    """Resolve a detector interpreter without assuming a Windows Conda layout."""
+    override = environ.get(override_name, "").strip()
+    if override:
+        return Path(override)
+    if os_name == "posix":
+        short_name = environment_name.removeprefix("ai-music-")
+        return Path(root).resolve() / f".venv-{short_name}" / "bin" / "python"
+    conda_envs = (
+        Path(envs_dir)
+        if envs_dir is not None
+        else Path(sys.executable).resolve().parent.parent
+    )
+    return conda_envs / environment_name / "python.exe"
 
 
 @dataclass(frozen=True)
@@ -33,24 +58,26 @@ class LabPaths:
     def from_root(cls, root: Path) -> "LabPaths":
         resolved = root.resolve()
         parent = resolved.parent
-        envs_dir = Path(sys.executable).resolve().parent.parent
-        lofcz_python = Path(
-            os.environ.get(
-                "AI_MUSIC_LOFCZ_PYTHON",
-                envs_dir / "ai-music-lofcz" / "python.exe",
-            )
+        lofcz_python = environment_python(
+            resolved,
+            "ai-music-lofcz",
+            os.environ,
+            "AI_MUSIC_LOFCZ_PYTHON",
+            os.name,
         )
-        fst_python = Path(
-            os.environ.get(
-                "AI_MUSIC_FST_PYTHON",
-                envs_dir / "ai-music-fst" / "python.exe",
-            )
+        fst_python = environment_python(
+            resolved,
+            "ai-music-fst",
+            os.environ,
+            "AI_MUSIC_FST_PYTHON",
+            os.name,
         )
-        muscriptor_python = Path(
-            os.environ.get(
-                "AI_MUSIC_MUSCRIPTOR_PYTHON",
-                envs_dir / "ai-music-muscriptor" / "python.exe",
-            )
+        muscriptor_python = environment_python(
+            resolved,
+            "ai-music-muscriptor",
+            os.environ,
+            "AI_MUSIC_MUSCRIPTOR_PYTHON",
+            os.name,
         )
         return cls(
             root=resolved,
