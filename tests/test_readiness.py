@@ -44,7 +44,7 @@ def test_every_requirement_is_reported_separately() -> None:
     present = {
         "pyproject.toml",
         "__init__.py",
-        "python.exe",
+        PATHS.muscriptor_python.name,
         "C:/cache/large/model.safetensors",
     }
 
@@ -69,7 +69,10 @@ def test_an_unprobed_report_is_never_ready() -> None:
         muscriptor_weights={"large": "C:/w"},
     )
 
-    result = report(settings, {"pyproject.toml", "__init__.py", "python.exe", "C:/w"})
+    result = report(
+        settings,
+        {"pyproject.toml", "__init__.py", PATHS.muscriptor_python.name, "C:/w"},
+    )
 
     assert result.probed is False
     assert result.ready is False
@@ -83,7 +86,7 @@ def test_a_probe_that_resolves_outside_the_clone_is_a_failure() -> None:
 
     result = report(
         settings,
-        {"pyproject.toml", "__init__.py", "python.exe"},
+        {"pyproject.toml", "__init__.py", PATHS.muscriptor_python.name},
         probe=lambda: {
             "muscriptor_file": "C:/env/site-packages/muscriptor/__init__.py",
             "inside_clone": False,
