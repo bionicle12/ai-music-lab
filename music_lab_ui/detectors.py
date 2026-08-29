@@ -14,14 +14,13 @@ import numpy as np
 from .config import LabPaths
 from .contracts import DetectorResult
 from .i18n import Translator, get_translator
+from .settings import DEFAULT_FST_BACKBONE_BATCH
 
 ProgressCallback = Callable[[str, float], None]
 
-#: Segments per FST backbone pass. Upstream sends all 48 at once and peaks at
-#: 16 GB of VRAM, which is more than most cards have; in eights the same run
-#: peaks at 4.8 GB in the same time. Kept here rather than left to the adapter
-#: default so the value appears in the command that produced the score.
-FST_BACKBONE_BATCH = 8
+#: Kept explicit in the UI command so the saved run says which platform-safe
+#: batch produced its score rather than relying on the adapter's implicit value.
+FST_BACKBONE_BATCH = DEFAULT_FST_BACKBONE_BATCH
 
 
 def _error_result(

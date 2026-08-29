@@ -12,6 +12,7 @@ from adapters.fst_cli import (
     DetectorPaths,
     build_parser,
     mean_fusion_gate,
+    platform_default_backbone_batch,
     self_similarity_matrix,
     stage1_class_probabilities,
     upstream_import_context,
@@ -101,7 +102,12 @@ def test_mean_fusion_gate_ignores_padded_segments() -> None:
     assert means == pytest.approx([0.3, 0.9])
 
 
-def test_backbone_batch_defaults_to_eight_not_to_the_upstream_batch() -> None:
+def test_standalone_cli_uses_platform_default() -> None:
+    assert platform_default_backbone_batch("darwin") == 2
+    assert platform_default_backbone_batch("win32") == 8
+
+
+def test_backbone_batch_defaults_to_platform_safe_size() -> None:
     """Upstream sends all 48 segments through the backbone at once and peaks at
     16 GB of VRAM, which is more than most cards have. Measured on three tracks,
     eights peak at 4.8 GB in the same time."""
@@ -109,7 +115,7 @@ def test_backbone_batch_defaults_to_eight_not_to_the_upstream_batch() -> None:
         ["--upstream", "u", "--stage1", "a", "--stage2", "b", "--audio", "c"]
     )
 
-    assert parsed.backbone_batch == DEFAULT_BACKBONE_BATCH == 8
+    assert parsed.backbone_batch == DEFAULT_BACKBONE_BATCH == 2
 
 
 def test_the_upstream_batch_is_still_reachable() -> None:

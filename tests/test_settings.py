@@ -8,15 +8,37 @@ from pathlib import Path
 
 from music_lab_ui.settings import (
     DEFAULT_FST_BACKBONE_BATCH,
+    DEFAULT_FST_CUDA_BACKBONE_BATCH,
+    DEFAULT_FST_MPS_BACKBONE_BATCH,
     DEFAULT_MODEL,
+    FST_BACKBONE_CHOICES,
     SETTINGS_VERSION,
     LabSettings,
     SettingsStore,
     _MIGRATIONS,
     migrate,
+    platform_default_fst_backbone_batch,
     resolve_token,
     token_fingerprint,
 )
+
+
+def test_new_macos_settings_default_to_two() -> None:
+    assert platform_default_fst_backbone_batch("darwin") == 2
+    assert DEFAULT_FST_MPS_BACKBONE_BATCH == 2
+
+
+def test_new_windows_settings_keep_cuda_default() -> None:
+    assert platform_default_fst_backbone_batch("win32") == 8
+    assert DEFAULT_FST_CUDA_BACKBONE_BATCH == 8
+
+
+def test_fst_batch_choices_include_mps_safe_values() -> None:
+    assert FST_BACKBONE_CHOICES == (1, 2, 4, 8, 0)
+
+
+def test_invalid_fst_batch_uses_the_selected_platform_default() -> None:
+    assert LabSettings(fst_backbone_batch=3).normalized().fst_backbone_batch == 2
 
 
 def test_missing_file_yields_defaults_without_an_error(tmp_path: Path) -> None:

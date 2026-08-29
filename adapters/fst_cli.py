@@ -11,9 +11,14 @@ from typing import Any, Iterator
 import numpy as np
 
 
-#: Segments per backbone forward pass. 4.8 GB of VRAM instead of 16 for the same
-#: answer in the same time; ``0`` restores the upstream single-batch behaviour.
-DEFAULT_BACKBONE_BATCH = 8
+def platform_default_backbone_batch(platform_name: str | None = None) -> int:
+    selected = sys.platform if platform_name is None else platform_name
+    return 2 if selected == "darwin" else 8
+
+
+#: Segments per backbone forward pass. ``0`` restores the upstream single-batch
+#: behaviour; macOS starts smaller because MPS shares memory with the system.
+DEFAULT_BACKBONE_BATCH = platform_default_backbone_batch()
 
 
 @dataclass(frozen=True)

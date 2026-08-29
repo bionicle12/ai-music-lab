@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
@@ -30,10 +31,24 @@ MODEL_SIZES: Final[tuple[str, ...]] = ("small", "medium", "large")
 DEFAULT_MODEL: Final[str] = "large"
 DEVICES: Final[tuple[str, ...]] = ("cuda", "cpu")
 
-#: Segments per FST backbone pass, with the peak GPU memory each one cost on a
-#: 3:26 track. ``0`` is upstream's own single pass over all 48.
-FST_BACKBONE_CHOICES: Final[tuple[int, ...]] = (4, 8, 0)
-DEFAULT_FST_BACKBONE_BATCH: Final[int] = 8
+#: Segments per FST backbone pass. ``0`` is upstream's own single pass over all
+#: 48 and remains available for CUDA reproduction, but is rejected on MPS.
+FST_BACKBONE_CHOICES: Final[tuple[int, ...]] = (1, 2, 4, 8, 0)
+DEFAULT_FST_CUDA_BACKBONE_BATCH: Final[int] = 8
+DEFAULT_FST_MPS_BACKBONE_BATCH: Final[int] = 2
+
+
+def platform_default_fst_backbone_batch(
+    platform_name: str | None = None,
+) -> int:
+    selected = sys.platform if platform_name is None else platform_name
+    if selected == "darwin":
+        return DEFAULT_FST_MPS_BACKBONE_BATCH
+    return DEFAULT_FST_CUDA_BACKBONE_BATCH
+
+
+#: Compatibility name used by existing UI and detector code.
+DEFAULT_FST_BACKBONE_BATCH: Final[int] = platform_default_fst_backbone_batch()
 
 
 @dataclass(frozen=True)
@@ -52,7 +67,9 @@ class LabSettings:
     #: How many of FST's 48 segments go through the backbone at once. Not a
     #: performance dial: it is the difference between 4.8 GB of VRAM and 16, and
     #: it can move the raw logit by one float16 ulp, so it is recorded per run.
-    fst_backbone_batch: int = DEFAULT_FST_BACKBONE_BATCH
+    fst_backbone_batch: int = field(
+        default_factory=platform_default_fst_backbone_batch
+    )
     version: int = SETTINGS_VERSION
 
     def normalized(self) -> "LabSettings":
@@ -71,7 +88,7 @@ class LabSettings:
         batch = (
             self.fst_backbone_batch
             if self.fst_backbone_batch in FST_BACKBONE_CHOICES
-            else DEFAULT_FST_BACKBONE_BATCH
+            else platform_default_fst_backbone_batch()
         )
         return replace(
             self,
