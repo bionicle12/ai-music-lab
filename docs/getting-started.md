@@ -6,9 +6,9 @@
 
 | Requirement | Why |
 | --- | --- |
-| Windows | The launcher and paths are PowerShell-native; see [platform note](#platform-note) |
-| NVIDIA GPU + driver | FST runs on CUDA; a 32-second file takes about 19 s on an RTX 4090 |
-| [Conda](https://docs.conda.io/projects/miniconda/) | Each detector needs its own dependency set |
+| Windows or Apple Silicon macOS | macOS currently supports UI, model-free analysis and lofcz |
+| NVIDIA GPU + driver | Required for FST; a 32-second file takes about 19 s on an RTX 4090 |
+| [Conda](https://docs.conda.io/projects/miniconda/) | Windows only; macOS uses project-local venvs |
 | Git | The two upstream detectors are cloned, not vendored |
 
 Docker is not required. A global FFmpeg is not required either — every environment reads WAV,
@@ -35,6 +35,21 @@ If an environment refuses to build — a proxy, a resolver conflict, a locked fi
 stops and hands you a ready-made prompt for a coding agent, with the commands, the paths and the
 tail of the log already in it. Finish that one step however works, press **Check again**, and the
 remaining steps carry on from there.
+
+## Apple Silicon macOS quick start
+
+Install Homebrew Python 3.11 and Git, then run from this repository:
+
+```bash
+chmod +x bootstrap_macos.sh start_ui.sh
+./bootstrap_macos.sh
+./start_ui.sh
+```
+
+The idempotent bootstrap creates `.venv-ui` and `.venv-lofcz`, clones both detector upstreams
+next to this repository at the recorded commits, and downloads and verifies the lofcz ONNX
+model. This milestone supports the UI, model-free metrics, and lofcz. FST/MPS and muscriptor
+are not installed yet. The remaining numbered sections describe the full Windows setup.
 
 ## 1. Clone the wrapper and the upstreams
 
@@ -173,9 +188,9 @@ conda run -n ai-music-ui python -m pip install -r environments\ai-music-ui.txt
 
 ## Platform note
 
-Built and used on Windows with a single RTX 4090, and cross-platform support is not planned.
-Nothing in the analysis code is deliberately Windows-only, but the launcher, the documented
-commands and the paths all assume PowerShell and Conda, and no other platform is tested.
+The full FST and muscriptor stack is built and measured on Windows with a single RTX 4090.
+Apple Silicon macOS supports the UI, model-free analysis, and lofcz through the bootstrap above.
+FST/MPS and muscriptor remain follow-up milestones.
 
 ## Pinned environment
 

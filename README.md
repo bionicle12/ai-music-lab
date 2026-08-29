@@ -7,7 +7,7 @@
 
 <p align="center">
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-23b7e5?style=flat-square">
-  <img alt="Platform Windows, macOS planned" src="https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20planned-91a3b3?style=flat-square">
+  <img alt="Platform Windows and macOS" src="https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS-91a3b3?style=flat-square">
   <img alt="Python 3.11" src="https://img.shields.io/badge/python-3.11-4bd19b?style=flat-square">
   <img alt="CUDA 12.8" src="https://img.shields.io/badge/CUDA-12.8-4bd19b?style=flat-square">
   <img alt="Tests 356 passing" src="https://img.shields.io/badge/tests-356%20passing-4bd19b?style=flat-square">
@@ -104,7 +104,9 @@ pool; see [Platform](#platform).
 
 ## Quick start
 
-Windows with an NVIDIA GPU, [Conda](https://docs.conda.io/projects/miniconda/), and Git.
+The full detector stack needs Windows with an NVIDIA GPU,
+[Conda](https://docs.conda.io/projects/miniconda/), and Git. Apple Silicon macOS currently
+supports the UI, model-free analysis, and lofcz through project-local virtual environments.
 
 ### How the pieces fit together
 
@@ -147,6 +149,20 @@ Every file has a published SHA-256 in **[Models](docs/models.md)**. Verify befor
 any measurement made with it.
 
 ### Install
+
+On Apple Silicon with Homebrew Python 3.11:
+
+```bash
+chmod +x bootstrap_macos.sh start_ui.sh
+./bootstrap_macos.sh
+./start_ui.sh
+```
+
+The bootstrap creates `.venv-ui` and `.venv-lofcz`, prepares the pinned detector clones next
+to this repository, and downloads and verifies the lofcz model. FST on MPS and muscriptor on
+macOS are separate follow-up milestones.
+
+On Windows:
 
 ```powershell
 git clone https://github.com/bionicle12/ai-music-lab.git
@@ -264,16 +280,15 @@ activity, transcribing music you hold no rights to included. See
 
 ## Platform
 
-Built and used on Windows with a single RTX 4090. Commands, paths and scripts are PowerShell-
-and Conda-native. Everything runs locally; no audio is uploaded anywhere.
+The full stack is built and measured on Windows with an RTX 4090. Apple Silicon macOS has a
+native launcher and supports the interface, model-free analysis, and lofcz. Everything runs
+locally; no audio is uploaded anywhere.
 
-**macOS is planned**, and worth being precise about. Two things have to happen. The adapters ask
-for CUDA by name — FST refuses to start without it — so the port means an MPS path through each
-adapter and the PowerShell scripts in a portable form. The harder half is memory: Apple Silicon
-shares one pool between CPU and GPU, so FST's fixed 16 GB working set is 16 GB of everything the
-machine has. A 16 GB MacBook will not run that detector; 32 GB is the realistic bar for it, while
-the rest of the lab is comfortable far below. It happens when there is a Mac here to test on — a
-port nobody has run is not support.
+FST still requires CUDA in this milestone and therefore remains Windows-only. Its adapter
+already slices the fixed 48-segment backbone pass to reduce the measured CUDA peak from about
+16 GB to 4.8 GB at a batch of eight. The MPS follow-up will keep that control but must measure
+unified-memory use on Apple hardware rather than treating the CUDA number as a guarantee.
+muscriptor is also not yet included in the macOS bootstrap.
 
 ## License
 
