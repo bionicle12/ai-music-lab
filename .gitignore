@@ -2,6 +2,8 @@ __pycache__/
 .idea
 .pytest_cache/
 *.py[cod]
+.venv-ui/
+.venv-lofcz/
 models/lofcz/*
 models/fst/*
 !models/lofcz/.gitkeep
